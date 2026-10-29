@@ -1,0 +1,18 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock.bak
+*.iml
+.idea/
+.vscode/
+.DS_Store
+
+# Generated platform folders (recreated by tool/setup_platforms.sh)
+# Remove these two lines once you start customising native code and want to commit them.
+/android/
+/ios/
