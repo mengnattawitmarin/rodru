@@ -16,3 +16,4 @@ pubspec.lock.bak
 # Remove these two lines once you start customising native code and want to commit them.
 /android/
 /ios/
+RODRU_bundle.md
