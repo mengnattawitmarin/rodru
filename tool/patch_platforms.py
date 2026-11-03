@@ -62,7 +62,53 @@ def patch_android():
         if d.startswith("mipmap-") and os.path.exists(src):
             os.makedirs(os.path.join(res, d), exist_ok=True)
             shutil.copy(src, os.path.join(res, d, "ic_launcher.png"))
+
+    patch_signing()
     print("android patched")
+
+
+def patch_signing():
+    """Sign release builds with the shared test key in tool/signing so every
+    CI build installs over the previous one (the default debug key is
+    regenerated on each runner, which makes Android refuse updates)."""
+    kts = os.path.join(ROOT, "android/app/build.gradle.kts")
+    groovy = os.path.join(ROOT, "android/app/build.gradle")
+    if os.path.exists(kts):
+        s = open(kts, encoding="utf-8").read()
+        if "rodruTest" not in s:
+            block = (
+                "    signingConfigs {\n"
+                "        create(\"rodruTest\") {\n"
+                "            storeFile = rootProject.file(\"../tool/signing/debug.keystore\")\n"
+                "            storePassword = \"android\"\n"
+                "            keyAlias = \"androiddebugkey\"\n"
+                "            keyPassword = \"android\"\n"
+                "        }\n"
+                "    }\n\n"
+            )
+            s = re.sub(r"(\n\s*buildTypes\s*\{)", "\n" + block.rstrip("\n") + r"\1", s, count=1)
+            s = s.replace('signingConfigs.getByName("debug")', 'signingConfigs.getByName("rodruTest")')
+            open(kts, "w", encoding="utf-8").write(s)
+        assert 'getByName("rodruTest")' in s, "signing patch failed (kts)"
+    elif os.path.exists(groovy):
+        s = open(groovy, encoding="utf-8").read()
+        if "rodruTest" not in s:
+            block = (
+                "    signingConfigs {\n"
+                "        rodruTest {\n"
+                "            storeFile rootProject.file('../tool/signing/debug.keystore')\n"
+                "            storePassword 'android'\n"
+                "            keyAlias 'androiddebugkey'\n"
+                "            keyPassword 'android'\n"
+                "        }\n"
+                "    }\n"
+            )
+            s = re.sub(r"(\n\s*buildTypes\s*\{)", "\n" + block.rstrip("\n") + r"\1", s, count=1)
+            s = s.replace("signingConfig signingConfigs.debug", "signingConfig signingConfigs.rodruTest")
+            open(groovy, "w", encoding="utf-8").write(s)
+        assert "signingConfigs.rodruTest" in s, "signing patch failed (groovy)"
+    else:
+        print("skip signing: no app build.gradle")
 
 
 def patch_ios():

@@ -77,6 +77,18 @@ jobs:
           fi
           cp build/app/outputs/flutter-apk/app-release.apk rodru.apk
 
+      # Every build must be signed with tool/signing/debug.keystore, otherwise
+      # phones refuse to install the update over the previous version.
+      - name: Verify signing key
+        run: |
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          CERT=$("$APKSIGNER" verify --print-certs rodru.apk | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}')
+          echo "APK cert SHA-256: $CERT"
+          if [ "$CERT" != "e438ec0829c7eb7f1ba4c214e37bbb1de0b6db636a32abe088f27d9ce90c8b81" ]; then
+            echo "::error title=signing::APK signed with unexpected key $CERT"
+            exit 1
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
