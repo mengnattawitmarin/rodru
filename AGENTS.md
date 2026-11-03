@@ -41,7 +41,7 @@ test/projection_test.dart     tests: AR orientation/projection
 test/widget_test.dart         app เปิดได้แบบออฟไลน์ (MockClient)
 tool/setup_platforms.sh       flutter create android/ios + patch (ไม่ commit โฟลเดอร์ android/ ios/)
 tool/patch_platforms.py       ใส่ permission, ชื่อแอป, <queries>, ไอคอน, Info.plist
-tool/signing/debug.keystore   คีย์ทดสอบ (ใช้บน CI เท่านั้น ให้ APK ติดตั้งทับกันได้) — ห้ามใช้ขึ้น Play Store
+tool/signing/debug.keystore   คีย์ทดสอบ — patch_platforms.py ตั้ง signingConfig "rodruTest" ใน build.gradle.kts ให้ release ใช้คีย์นี้ และ CI ตรวจ SHA-256 (e438ec08…) ทุก build ให้ APK ติดตั้งทับกันได้ — ห้ามใช้ขึ้น Play Store
 .github/workflows/build.yml   CI: analyze → test → build apk → Release "build-N" (error ของ analyze/test/build ถูกส่งเป็น annotation อ่านได้ผ่าน API check-runs โดยไม่ต้อง login)
 ```
 
@@ -86,5 +86,6 @@ Overpass (3 เซิร์ฟเวอร์สำรอง), OSRM demo, Nomina
 ## บันทึกการส่งต่อ (เพิ่มรายการใหม่ไว้บนสุด)
 | วันที่ | ผู้ทำ (AI/คน) | ทำอะไร | ค้าง/ข้อควรรู้ |
 |---|---|---|---|
+| 2026-11-03 | Claude (claude.ai) | แก้ "แพ็กเกจขัดแย้ง" ตอนติดตั้งทับ: build เก่าเซ็นด้วยคีย์สุ่มของ runner → ตอนนี้เซ็นด้วยคีย์ใน repo + CI ตรวจ | ผู้ใช้ต้องถอนแอปเก่า 1 ครั้ง (build-8 ขึ้นไปติดตั้งทับกันได้) |
 | 2026-11-03 | Claude (claude.ai) | v0.3: ทำ Backlog #1–#8 (ดู CHANGELOG) | ยังไม่ทดสอบบนเครื่องจริง; FOV กล้อง AR ปรับได้ในแอป; ThaiWater อาจเปลี่ยนรูปแบบข้อมูล (มี test parse) |
 | 2026-10-29 | Claude (claude.ai) | ปรับจาก MVP ไฟล์เดียวเป็น v0.2 ทั้งระบบ + CI APK | ยังไม่ทดสอบบนเครื่องจริง; Node20 actions warning (อัปเป็น checkout@v5/setup-java@v5 ได้) |
