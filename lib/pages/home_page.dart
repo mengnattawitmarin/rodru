@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../data/content.dart';
+import '../logic/daily_brief.dart';
 import '../logic/format.dart';
 import '../main.dart';
 import '../models/models.dart';
@@ -24,7 +25,7 @@ class HomePage extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: s.refresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           // ---- header ----
           Row(children: [
@@ -81,27 +82,8 @@ class HomePage extends StatelessWidget {
               ]),
             ),
 
-          // ---- status banner ----
-          _StatusBanner(top: top, forecast: f, loading: s.loading && f == null),
-
-          // ---- what to do now ----
-          _WhatToDo(top: top),
-
-          // ---- SOS ----
-          const SizedBox(height: 2),
-          SizedBox(
-            height: 56,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              ),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SosPage())),
-              icon: const Icon(Icons.call, size: 26),
-              label: const Text('SOS  ขอความช่วยเหลือด่วน', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-            ),
-          ),
-          const SizedBox(height: 14),
+          // ---- daily brief (TV-weather style) ----
+          _BriefCard(state: s, loading: s.loading && f == null),
 
           // ---- weather detail ----
           if (f != null) ...[
@@ -110,6 +92,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 10),
           ],
           if (s.air != null) _AirCard(air: s.air!),
+          _WaterNearCard(state: s),
 
           // ---- hazards ----
           SectionTitle('สถานการณ์ & ภัยพิบัติ', trailing: 'คู่มือทั้งหมด', onTrailing: () => ShellController.go(context, Tabs.ready)),
@@ -156,6 +139,21 @@ class HomePage extends StatelessWidget {
           for (final o in officialSources)
             InfoCard(icon: Icons.verified_outlined, color: green, title: o.name, subtitle: o.desc, onTap: () => openWeb(context, o.url)),
 
+          // ---- what to do now + SOS (moved to the bottom; floating SOS stays on screen) ----
+          const SizedBox(height: 8),
+          _WhatToDo(top: top),
+          SizedBox(
+            height: 56,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              ),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SosPage())),
+              icon: const Icon(Icons.call, size: 26),
+              label: const Text('SOS  ขอความช่วยเหลือด่วน', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            ),
+          ),
           const SizedBox(height: 6),
           Disclaimer(
             'ระดับเฝ้าระวังในแอปคำนวณจากพยากรณ์ Open-Meteo / USGS ไม่ใช่ประกาศทางการ '
@@ -168,26 +166,61 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.top, required this.forecast, required this.loading});
-  final RiskAlert? top;
-  final Forecast? forecast;
+class _BriefCard extends StatelessWidget {
+  const _BriefCard({required this.state, required this.loading});
+  final AppState state;
   final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    final f = forecast;
-    final level = top?.level ?? 0;
-    final c = levelColor(level);
+    final f = state.forecast;
+    if (f == null) {
+      return Panel(
+        padding: const EdgeInsets.all(18),
+        child: SizedBox(
+          height: 140,
+          child: Center(
+            child: loading
+                ? const CircularProgressIndicator()
+                : const Text('ยังไม่มีข้อมูลอากาศ ดึงลงเพื่อลองใหม่', style: TextStyle(color: Colors.white60)),
+          ),
+        ),
+      );
+    }
+    final b = DailyBriefBuilder().build(f: f, air: state.air, alerts: state.alerts);
+    final c = levelColor(b.level);
+    final top = state.alerts.isEmpty ? null : state.alerts.first;
+
+    Widget section(String label, String text, {IconData? icon}) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(
+              width: 62,
+              child: Text(label, style: const TextStyle(color: amber, fontSize: 12, fontWeight: FontWeight.w800, height: 1.5)),
+            ),
+            Expanded(child: Text(text, style: const TextStyle(fontSize: 14, height: 1.45))),
+          ]),
+        );
+
+    Widget chip(BriefChip ch, {bool lifestyle = false}) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: (lifestyle ? (ch.good ? green : Colors.white38) : blue).withValues(alpha: .15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: (lifestyle ? (ch.good ? green : Colors.white24) : blue).withValues(alpha: .5)),
+          ),
+          child: Text('${ch.emoji} ${ch.label}', style: TextStyle(fontSize: 12.5, color: lifestyle && !ch.good ? Colors.white60 : Colors.white)),
+        );
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
-          colors: level == 2
+          colors: b.level == 2
               ? const [Color(0xFF5A1F28), Color(0xFF231A2E)]
-              : level == 1
+              : b.level == 1
                   ? const [Color(0xFF4A3A1A), Color(0xFF14273D)]
                   : const [panel2, panel],
           begin: Alignment.topLeft,
@@ -195,41 +228,93 @@ class _StatusBanner extends StatelessWidget {
         ),
         border: Border.all(color: c.withValues(alpha: .45)),
       ),
-      child: loading
-          ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
-          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(top?.icon ?? (f == null ? Icons.cloud_off : weatherIcon(f.code, isDay: f.isDay)),
-                    size: 54, color: top != null ? c : (f == null ? Colors.white38 : weatherColor(f.code))),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Pill(level == 2 ? 'เตือนภัย' : level == 1 ? 'เฝ้าระวัง' : 'สถานการณ์ปกติ', color: c),
-                    const SizedBox(height: 6),
-                    Text(top?.title ?? (f == null ? 'ยังไม่มีข้อมูล' : weatherText(f.code)),
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, height: 1.2)),
-                    if (top != null) ...[
-                      const SizedBox(height: 4),
-                      Text(top!.detail, style: TextStyle(color: c, fontSize: 13)),
-                    ],
-                  ]),
-                ),
-              ]),
-              if (f != null) ...[
-                const Divider(height: 22, color: Colors.white12),
-                Row(children: [
-                  Text('${f.temp.round()}°', style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w800, height: 1)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '${weatherText(f.code)}\nรู้สึกเหมือน ${f.feels.round()}° • ความชื้น ${f.humidity}%\n'
-                      'ฝน ${f.precip.toStringAsFixed(1)} มม. • ลม ${f.wind.round()} (กระโชก ${f.gust.round()}) กม./ชม.',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-                    ),
-                  ),
-                ]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // greeting + temperature
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${b.greeting} • ${state.location.name}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 6),
+              if (b.level > 0) ...[
+                Pill(b.level == 2 ? 'เตือนภัย' : 'เฝ้าระวัง', color: c),
+                const SizedBox(height: 6),
+              ],
+              Text(b.headline, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, height: 1.25)),
+              if (top != null) ...[
+                const SizedBox(height: 4),
+                Text(top.detail, style: TextStyle(color: c, fontSize: 13)),
               ],
             ]),
+          ),
+          const SizedBox(width: 10),
+          Column(children: [
+            Icon(top?.icon ?? weatherIcon(f.code, isDay: f.isDay), size: 40, color: top != null ? c : weatherColor(f.code)),
+            Text('${f.temp.round()}°', style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, height: 1.1)),
+          ]),
+        ]),
+        const SizedBox(height: 8),
+        Text(
+          '${weatherText(f.code)} • รู้สึกเหมือน ${f.feels.round()}° • ชื้น ${f.humidity}% • ลม ${f.wind.round()} (กระโชก ${f.gust.round()}) กม./ชม.',
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
+        const Divider(height: 18, color: Colors.white12),
+        if (b.today.isNotEmpty) section('วันนี้', b.today.join('\n')),
+        if (b.tomorrow != null) section('พรุ่งนี้', b.tomorrow!),
+        if (b.bring.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SizedBox(width: 62, child: Text('ต้องพก', style: TextStyle(color: amber, fontSize: 12, fontWeight: FontWeight.w800, height: 2))),
+            Expanded(child: Wrap(spacing: 6, runSpacing: 6, children: [for (final ch in b.bring) chip(ch)])),
+          ]),
+        ],
+        if (b.lookahead != null) section('ข้างหน้า', b.lookahead!),
+        if (b.lifestyle.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(spacing: 6, runSpacing: 6, children: [for (final ch in b.lifestyle) chip(ch, lifestyle: true)]),
+        ],
+        const SizedBox(height: 10),
+        Text(
+          b.serious ? 'ข้อมูลประเมินจากพยากรณ์ — ทำตามประกาศทางการและเจ้าหน้าที่เป็นหลัก' : 'คำแนะนำจากพยากรณ์ ไม่ใช่ประกาศทางการ',
+          style: const TextStyle(color: Colors.white38, fontSize: 10.5),
+        ),
+      ]),
+    );
+  }
+}
+
+class _WaterNearCard extends StatelessWidget {
+  const _WaterNearCard({required this.state});
+  final AppState state;
+  @override
+  Widget build(BuildContext context) {
+    final w = state.nearestWaterStation();
+    if (w == null) return const SizedBox.shrink();
+    final d = haversine(state.location.lat, state.location.lon, w.lat, w.lon);
+    return Panel(
+      onTap: () => ShellController.go(context, Tabs.map),
+      child: Row(children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: w.color.withValues(alpha: .15), border: Border.all(color: w.color, width: 2)),
+          child: Icon(w.trend > 0 ? Icons.trending_up : w.trend < 0 ? Icons.trending_down : Icons.water, color: w.color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('ระดับน้ำใกล้คุณ • ${w.situationLabel}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(
+              '${w.name}${w.river.isNotEmpty ? ' (${w.river})' : ''} • ห่าง ${distanceText(d)}\n'
+              '${w.bankText ?? 'ระดับ ${w.levelMsl?.toStringAsFixed(2)} ม.รทก.'}'
+              '${w.trend > 0 ? ' • น้ำกำลังขึ้น' : w.trend < 0 ? ' • น้ำกำลังลง' : ''} • ${hhmm(w.time)} น.',
+              style: const TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+          ]),
+        ),
+        const Icon(Icons.chevron_right, color: Colors.white38),
+      ]),
     );
   }
 }

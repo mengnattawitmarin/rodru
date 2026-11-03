@@ -22,6 +22,31 @@ class _SkyPageState extends State<SkyPage> {
   DateTime _now = DateTime.now();
 
   List<MapEntry<DateTime, double>>? _tide;
+  String? _tideRef; // name of the coastal reference point used, if not the location itself
+
+  /// Coastal reference points used when the chosen place is inland.
+  static const _coastRefs = <(String, double, double)>[
+    ('ปากแม่น้ำเจ้าพระยา สมุทรปราการ', 13.50, 100.60),
+    ('สมุทรสาคร', 13.45, 100.28),
+    ('ศรีราชา ชลบุรี', 13.17, 100.90),
+    ('พัทยา', 12.93, 100.85),
+    ('ระยอง', 12.62, 101.30),
+    ('จันทบุรี', 12.45, 102.05),
+    ('ตราด', 12.15, 102.60),
+    ('หัวหิน', 12.57, 99.98),
+    ('ชุมพร', 10.45, 99.30),
+    ('สุราษฎร์ธานี', 9.25, 99.40),
+    ('นครศรีธรรมราช', 8.50, 100.10),
+    ('สงขลา', 7.22, 100.62),
+    ('ปัตตานี', 6.95, 101.30),
+    ('นราธิวาส', 6.43, 101.85),
+    ('ระนอง', 9.90, 98.55),
+    ('เขาหลัก พังงา', 8.64, 98.22),
+    ('ภูเก็ต', 7.88, 98.25),
+    ('กระบี่', 7.98, 98.80),
+    ('ตรัง', 7.40, 99.40),
+    ('สตูล', 6.55, 99.98),
+  ];
   bool _tideLoading = false;
   bool _tideChecked = false;
   String? _tideFor;
@@ -48,8 +73,30 @@ class _SkyPageState extends State<SkyPage> {
     final s = AppScope.read(context);
     setState(() => _tideLoading = true);
     try {
-      final t = await s.api.fetchSeaLevel(s.location.lat, s.location.lon);
-      if (mounted) setState(() => _tide = t);
+      var t = await s.api.fetchSeaLevel(s.location.lat, s.location.lon);
+      String? ref;
+      if (t == null) {
+        // Inland: use the nearest coastal reference point within 200 km.
+        (String, double, double)? best;
+        var bestD = 200000.0;
+        for (final c in _coastRefs) {
+          final d = haversine(s.location.lat, s.location.lon, c.$2, c.$3);
+          if (d < bestD) {
+            bestD = d;
+            best = c;
+          }
+        }
+        if (best != null) {
+          t = await s.api.fetchSeaLevel(best.$2, best.$3);
+          if (t != null) ref = '${best.$1} (ห่าง ${distanceText(bestD)})';
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _tide = t;
+          _tideRef = ref;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _tide = null);
     } finally {
@@ -107,7 +154,7 @@ class _SkyPageState extends State<SkyPage> {
             Row(children: [
               _TimeBox(label: 'พระอาทิตย์ขึ้น', time: st.sunrise, icon: Icons.wb_twilight, sub: riseAz == null ? null : 'ทิศ ${riseAz.round()}° ${compassShort(riseAz)}'),
               const Spacer(),
-              _TimeBox(label: 'พระอาทิตย์ตก', time: st.sunset, icon: Icons.nights_stay, sub: setAz == null ? null : 'ทิศ ${setAz.round()}° ${compassShort(setAz)}', alignEnd: true),
+              _TimeBox(label: 'พระอาทิตย์ตก', time: st.sunset, icon: Icons.wb_twilight, sub: setAz == null ? null : 'ทิศ ${setAz.round()}° ${compassShort(setAz)}', alignEnd: true),
             ]),
             SizedBox(
               height: 120,
@@ -155,7 +202,7 @@ class _SkyPageState extends State<SkyPage> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(child: _TideCard(series: _tide, loading: _tideLoading, checked: _tideChecked, day: day)),
+          Expanded(child: _TideCard(series: _tide, loading: _tideLoading, checked: _tideChecked, day: day, refName: _tideRef)),
         ]),
 
         // ---- compass ----
@@ -261,7 +308,8 @@ class _MoonPainter extends CustomPainter {
 }
 
 class _TideCard extends StatelessWidget {
-  const _TideCard({required this.series, required this.loading, required this.checked, required this.day});
+  const _TideCard({required this.series, required this.loading, required this.checked, required this.day, this.refName});
+  final String? refName;
   final List<MapEntry<DateTime, double>>? series;
   final bool loading, checked;
   final DateTime day;
@@ -302,6 +350,7 @@ class _TideCard extends StatelessWidget {
     return Panel(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('น้ำขึ้น-น้ำลง', style: TextStyle(fontWeight: FontWeight.bold, color: blue)),
+        if (refName != null) Text('จุดอ้างอิง: $refName', style: const TextStyle(fontSize: 10, color: Colors.white60)),
         const SizedBox(height: 6),
         body,
         const SizedBox(height: 4),

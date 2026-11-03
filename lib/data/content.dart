@@ -202,19 +202,73 @@ class Hotline {
   final String number, name, desc;
   final IconData icon;
   final Color color;
-  const Hotline(this.number, this.name, this.desc, this.icon, this.color);
+  final String category;
+  const Hotline(this.number, this.name, this.desc, this.icon, this.color, {this.category = 'ฉุกเฉินหลัก'});
 }
 
+/// วันที่ตรวจสอบเบอร์ล่าสุด (เทียบกับข่าว/เว็บไซต์หน่วยงาน) — อัปเดตทุกครั้งที่แก้รายการ
+const hotlinesVerifiedAt = 'พ.ย. 2569';
+
+/// Four main numbers shown as big buttons on the SOS page (keep order).
 const hotlines = <Hotline>[
-  Hotline('1669', 'เจ็บป่วยฉุกเฉิน', 'สถาบันการแพทย์ฉุกเฉินแห่งชาติ', Icons.medical_services, red),
+  Hotline('1669', 'เจ็บป่วยฉุกเฉิน', 'สถาบันการแพทย์ฉุกเฉินแห่งชาติ (ทั่วประเทศ)', Icons.medical_services, red),
   Hotline('191', 'เหตุด่วนเหตุร้าย', 'ตำรวจ', Icons.local_police, blue),
   Hotline('199', 'ดับเพลิง', 'แจ้งไฟไหม้ สัตว์เข้าบ้าน', Icons.fire_truck, Color(0xFFFF9F43)),
   Hotline('1784', 'สายด่วนนิรภัย ปภ.', 'กรมป้องกันและบรรเทาสาธารณภัย', Icons.shield, amber),
-  Hotline('1182', 'กรมอุตุนิยมวิทยา', 'สอบถามสภาพอากาศ/ประกาศเตือน', Icons.cloud, Color(0xFF7FD1FF)),
-  Hotline('1155', 'ตำรวจท่องเที่ยว', 'สำหรับนักท่องเที่ยว', Icons.luggage, green),
-  Hotline('1193', 'ตำรวจทางหลวง', 'อุบัติเหตุบนทางหลวง', Icons.add_road, purple),
-  Hotline('1196', 'อุบัติเหตุทางน้ำ', 'ศูนย์ปลอดภัยทางน้ำ กรมเจ้าท่า', Icons.directions_boat, blue),
+  Hotline('1182', 'กรมอุตุนิยมวิทยา', 'สอบถามสภาพอากาศ/ประกาศเตือน', Icons.cloud, Color(0xFF7FD1FF), category: 'ภัยธรรมชาติ & น้ำ'),
+  Hotline('1155', 'ตำรวจท่องเที่ยว', 'เหตุร้ายที่เกี่ยวกับนักท่องเที่ยว', Icons.luggage, green, category: 'การเดินทาง & ถนน'),
+  Hotline('1193', 'ตำรวจทางหลวง', 'อุบัติเหตุบนทางหลวง', Icons.add_road, purple, category: 'การเดินทาง & ถนน'),
+  Hotline('1196', 'อุบัติเหตุทางน้ำ', 'ศูนย์ปลอดภัยทางน้ำ กรมเจ้าท่า', Icons.directions_boat, blue, category: 'การเดินทาง & ถนน'),
 ];
+
+const _med = 'การแพทย์ & สุขภาพ';
+const _rescue = 'กู้ภัย & อาสา';
+const _nature = 'ภัยธรรมชาติ & น้ำ';
+const _util = 'ไฟฟ้า & ประปา';
+const _road = 'การเดินทาง & ถนน';
+const _social = 'สังคม & อาชญากรรม';
+
+/// Full directory (สมุดเบอร์ฉุกเฉิน). Numbers cross-checked with at least one
+/// news/agency source in Nov 2026 — see AGENTS.md before editing.
+const hotlineDirectory = <Hotline>[
+  ...hotlines,
+  // การแพทย์
+  Hotline('1646', 'ศูนย์เอราวัณ กทม.', 'หน่วยแพทย์ฉุกเฉิน สำนักการแพทย์ กทม.', Icons.emergency, red, category: _med),
+  Hotline('1554', 'หน่วยแพทย์กู้ชีวิต วชิรพยาบาล', 'รถพยาบาลฉุกเฉิน (กทม.)', Icons.local_hospital, red, category: _med),
+  Hotline('1691', 'โรงพยาบาลตำรวจ', 'ศูนย์รับแจ้งเหตุ รพ.ตำรวจ', Icons.local_hospital, red, category: _med),
+  Hotline('1367', 'ศูนย์พิษวิทยา รามาธิบดี', 'ได้รับสารพิษ กินยาเกิน ถูกงู/สัตว์มีพิษ', Icons.science, purple, category: _med),
+  Hotline('1323', 'สายด่วนสุขภาพจิต', 'กรมสุขภาพจิต ปรึกษาได้ 24 ชม.', Icons.psychology, green, category: _med),
+  // กู้ภัย
+  Hotline('1677', 'ร่วมด้วยช่วยกัน', 'เครือข่ายอาสาสมัคร ประสานความช่วยเหลือ', Icons.volunteer_activism, amber, category: _rescue),
+  Hotline('1418', 'มูลนิธิปอเต็กตึ๊ง', 'กู้ภัย (กทม.)', Icons.health_and_safety, amber, category: _rescue),
+  Hotline('1137', 'จส.100', 'แจ้งเหตุด่วนบนถนน ประสานต่อ', Icons.radio, amber, category: _rescue),
+  Hotline('1644', 'สวพ. FM91', 'แจ้งเหตุ/สภาพจราจร', Icons.radio, amber, category: _rescue),
+  // ภัยธรรมชาติ
+  Hotline('192', 'ศูนย์เตือนภัยพิบัติแห่งชาติ', 'แจ้ง/สอบถามภัยพิบัติ สึนามิ', Icons.tsunami, blue, category: _nature),
+  Hotline('1460', 'กรมชลประทาน', 'สถานการณ์น้ำ เขื่อน น้ำท่วม', Icons.water, blue, category: _nature),
+  Hotline('1555', 'กรุงเทพมหานคร', 'ศูนย์รับเรื่อง/ประสานเหตุฉุกเฉินใน กทม. น้ำท่วมขัง', Icons.location_city, blue, category: _nature),
+  // สาธารณูปโภค
+  Hotline('1130', 'การไฟฟ้านครหลวง (กฟน.)', 'ไฟดับ สายไฟขาด — กทม. นนทบุรี สมุทรปราการ', Icons.electric_bolt, amber, category: _util),
+  Hotline('1129', 'การไฟฟ้าส่วนภูมิภาค (กฟภ.)', 'ไฟดับ สายไฟขาด — ต่างจังหวัด', Icons.electric_bolt, amber, category: _util),
+  Hotline('1125', 'การประปานครหลวง (กปน.)', 'น้ำไม่ไหล ท่อแตก — กทม. นนทบุรี สมุทรปราการ', Icons.water_drop, blue, category: _util),
+  Hotline('1662', 'การประปาส่วนภูมิภาค (กปภ.)', 'น้ำไม่ไหล ท่อแตก — ต่างจังหวัด (24 ชม.)', Icons.water_drop, blue, category: _util),
+  // เดินทาง
+  Hotline('1586', 'กรมทางหลวง', 'ถนนทางหลวง ขาด/ชำรุด', Icons.alt_route, purple, category: _road),
+  Hotline('1146', 'กรมทางหลวงชนบท', 'ถนนในพื้นที่ต่างจังหวัด', Icons.alt_route, purple, category: _road),
+  Hotline('1543', 'การทางพิเศษ (ทางด่วน)', 'อุบัติเหตุบนทางด่วน', Icons.speed, purple, category: _road),
+  Hotline('1197', 'ศูนย์ควบคุมการจราจร', 'ข้อมูลจราจร ตำรวจ', Icons.traffic, purple, category: _road),
+  Hotline('1356', 'ศูนย์ปลอดภัยคมนาคม', 'ประสานความปลอดภัยการขนส่ง', Icons.commute, purple, category: _road),
+  Hotline('1584', 'กรมการขนส่งทางบก', 'ร้องเรียนรถสาธารณะ/แท็กซี่', Icons.local_taxi, purple, category: _road),
+  Hotline('1690', 'การรถไฟแห่งประเทศไทย', 'สอบถาม/แจ้งเหตุรถไฟ', Icons.train, purple, category: _road),
+  Hotline('1490', 'บขส.', 'บริษัท ขนส่ง จำกัด', Icons.directions_bus, purple, category: _road),
+  // สังคม
+  Hotline('1300', 'ศูนย์ช่วยเหลือสังคม (พม.)', 'คนหาย ความรุนแรง เด็ก ผู้สูงอายุ', Icons.family_restroom, green, category: _social),
+  Hotline('1192', 'แจ้งรถหาย', 'ศูนย์ปราบปรามการโจรกรรมรถ', Icons.car_crash, green, category: _social),
+  Hotline('1195', 'กองปราบปราม', 'แจ้งอาชญากรรมร้ายแรง', Icons.gavel, green, category: _social),
+  Hotline('1441', 'ศูนย์ต่อต้านอาชญากรรมออนไลน์ (AOC)', 'โดนหลอกโอนเงิน อายัดบัญชี', Icons.phishing, green, category: _social),
+];
+
+const hotlineCategories = ['ฉุกเฉินหลัก', _med, _rescue, _nature, _util, _road, _social];
 
 class OfficialSource {
   final String name, desc, url;

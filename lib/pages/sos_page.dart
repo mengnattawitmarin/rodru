@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'hotlines_page.dart';
+
 import '../app_state.dart';
 import '../data/content.dart';
 import '../models/models.dart';
@@ -143,6 +145,13 @@ class _SosPageState extends State<SosPage> {
             Panel(child: Text(s.medical.toShareText(), style: const TextStyle(height: 1.5))),
           ],
 
+          InfoCard(
+            icon: Icons.menu_book,
+            color: amber,
+            title: 'สมุดเบอร์ฉุกเฉิน ${hotlineDirectory.length} หน่วยงาน',
+            subtitle: 'การแพทย์ กู้ภัย ไฟฟ้า ประปา ถนน น้ำ — ค้นหาและปักหมุดได้',
+            onTap: () => openHotlines(context),
+          ),
           const SectionTitle('สายด่วนอื่น ๆ'),
           for (final h in hotlines.skip(4))
             InfoCard(

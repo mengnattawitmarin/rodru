@@ -6,6 +6,7 @@ import 'pages/map_page.dart';
 import 'pages/me_page.dart';
 import 'pages/ready_page.dart';
 import 'pages/sky_page.dart';
+import 'pages/sos_page.dart';
 import 'services/storage.dart';
 import 'theme.dart';
 
@@ -80,6 +81,17 @@ class _MainShellState extends State<MainShell> {
     return ShellController(
       goTo: goTo,
       child: Scaffold(
+        // Always-reachable SOS (hidden on the map tab, which has its own SOS button).
+        floatingActionButton: index == Tabs.map
+            ? null
+            : FloatingActionButton.extended(
+                heroTag: 'sos',
+                backgroundColor: red,
+                foregroundColor: Colors.white,
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SosPage())),
+                icon: const Icon(Icons.sos),
+                label: const Text('SOS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+              ),
         body: SafeArea(
           child: IndexedStack(
             index: index,

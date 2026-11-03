@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../app_state.dart';
 import '../logic/format.dart';
 import '../models/models.dart';
+import '../services/storage.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'route_page.dart';
@@ -68,12 +69,28 @@ class _MapPageState extends State<MapPage> {
       _loadingPlaces = true;
       _placesError = null;
     });
-    try {
-      final p = await AppScope.read(context).api.fetchSafePlaces(loc.lat, loc.lon);
+    final s = AppScope.read(context);
+    final cacheKey = '${loc.lat.toStringAsFixed(2)},${loc.lon.toStringAsFixed(2)}';
+    void sortAndSet(List<SafePlace> p) {
       p.sort((a, b) => haversine(loc.lat, loc.lon, a.lat, a.lon).compareTo(haversine(loc.lat, loc.lon, b.lat, b.lon)));
       if (mounted) setState(() => _safePlaces = p);
+    }
+
+    // Show cached places for this area immediately (works offline).
+    final cache = s.storage.getJson(Keys.safePlacesCache);
+    if (cache != null && cache['key'] == cacheKey) {
+      final list = (cache['items'] as List? ?? const []).whereType<Map<String, dynamic>>().map(SafePlace.fromJson).whereType<SafePlace>().toList();
+      if (list.isNotEmpty) sortAndSet(list);
+    }
+    try {
+      var p = await s.api.fetchSafePlaces(loc.lat, loc.lon, radiusM: 8000);
+      if (p.length < 5) p = await s.api.fetchSafePlaces(loc.lat, loc.lon, radiusM: 20000);
+      sortAndSet(p);
+      await s.storage.setJson(Keys.safePlacesCache, {'key': cacheKey, 'items': p.take(150).map((e) => e.toJson()).toList()});
     } catch (e) {
-      if (mounted) setState(() => _placesError = 'โหลดจุดปลอดภัยไม่สำเร็จ');
+      if (mounted) {
+        setState(() => _placesError = _safePlaces.isEmpty ? 'เซิร์ฟเวอร์แผนที่ไม่ว่าง ลองใหม่ภายหลัง' : null);
+      }
     } finally {
       if (mounted) setState(() => _loadingPlaces = false);
     }
@@ -335,7 +352,7 @@ class _MapPageState extends State<MapPage> {
                       _loadingPlaces
                           ? 'กำลังค้นหาจุดปลอดภัย...'
                           : _placesError ?? (_safePlaces.isEmpty
-                              ? 'ไม่พบจุดปลอดภัยในรัศมี 15 กม.'
+                              ? 'ไม่พบจุดปลอดภัยในรัศมี 20 กม.'
                               : 'จุดปลอดภัยใกล้คุณ ${_safePlaces.length} แห่ง • ใกล้สุด ${distanceText(haversine(loc.lat, loc.lon, _safePlaces.first.lat, _safePlaces.first.lon))}'),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),

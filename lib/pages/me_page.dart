@@ -5,6 +5,7 @@ import '../data/content.dart';
 import '../models/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'hotlines_page.dart';
 import 'location_picker.dart';
 import 'sos_page.dart';
 
@@ -99,7 +100,7 @@ class MePage extends StatelessWidget {
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FamilyPlanPage())),
         ),
 
-        const SectionTitle('สายด่วนฉุกเฉิน'),
+        SectionTitle('สายด่วนฉุกเฉิน', trailing: 'ดูทั้งหมด ${hotlineDirectory.length}', onTrailing: () => openHotlines(context)),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final h in hotlines)
             ActionChip(

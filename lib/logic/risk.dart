@@ -28,6 +28,7 @@ class RiskEngine {
     AirQuality? air,
     List<Quake> quakes = const [],
     AppLocation? location,
+    List<WaterStation> waterStations = const [],
   }) {
     final out = <RiskAlert>[];
     if (forecast != null) {
@@ -137,6 +138,37 @@ class RiskEngine {
           ));
           break; // one quake card is enough
         }
+      }
+    }
+
+    if (location != null && waterStations.isNotEmpty) {
+      // Water-level stations within 15 km that are high or overflowing.
+      WaterStation? worst;
+      double worstD = 0;
+      for (final w in waterStations) {
+        if (w.situation < 4) continue;
+        final d = haversine(location.lat, location.lon, w.lat, w.lon);
+        if (d > 15000) continue;
+        if (worst == null || w.situation > worst.situation || (w.situation == worst.situation && d < worstD)) {
+          worst = w;
+          worstD = d;
+        }
+      }
+      if (worst != null) {
+        final over = worst.situation >= 5;
+        out.add(RiskAlert(
+          hazard: 'flood',
+          level: over ? 2 : 1,
+          title: over ? 'แม่น้ำ/คลองใกล้คุณล้นตลิ่ง' : 'ระดับน้ำใกล้คุณสูง (น้ำมาก)',
+          detail: '${worst.name}${worst.river.isNotEmpty ? ' (${worst.river})' : ''} ห่าง ${distanceText(worstD)}'
+              '${worst.bankText != null ? ' • ${worst.bankText}' : ''}${worst.trend > 0 ? ' • กำลังขึ้น' : ''}',
+          icon: Icons.water,
+          actions: const [
+            'ยกของขึ้นที่สูง เตรียมกระเป๋าฉุกเฉิน',
+            'ติดตามประกาศจาก ปภ. / กรมชลประทาน 1460',
+            'หลีกเลี่ยงริมตลิ่งและทางน้ำไหล',
+          ],
+        ));
       }
     }
 

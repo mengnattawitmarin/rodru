@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 
+import 'logic/format.dart';
 import 'logic/risk.dart';
 import 'models/models.dart';
 import 'services/api.dart';
@@ -21,6 +22,9 @@ class AppState extends ChangeNotifier {
   bool forecastFromCache = false;
   AirQuality? air;
   List<Quake> quakes = const [];
+  List<WaterStation> waterStations = const [];
+  DateTime? waterUpdated;
+  Set<String> pinnedHotlines = {};
   List<RiskAlert> alerts = const [];
   bool loading = false;
   String? error;
@@ -51,6 +55,7 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
     }
     checklistDone = storage.getSet(Keys.checklist);
+    pinnedHotlines = storage.getSet(Keys.pinnedHotlines);
     contacts = storage
         .getJsonList(Keys.contacts)
         .whereType<Map<String, dynamic>>()
@@ -99,6 +104,16 @@ class AppState extends ChangeNotifier {
           errors.add('แผ่นดินไหว');
         }
       }(),
+      () async {
+        // ~800 stations nationwide; refresh at most every 20 minutes.
+        if (waterUpdated != null && DateTime.now().difference(waterUpdated!) < const Duration(minutes: 20)) return;
+        try {
+          waterStations = await api.fetchWaterLevels();
+          waterUpdated = DateTime.now();
+        } catch (_) {
+          // Not fatal: the water layer shows its own error.
+        }
+      }(),
     ]);
 
     if (errors.isEmpty) {
@@ -112,7 +127,13 @@ class AppState extends ChangeNotifier {
   }
 
   void _recompute() {
-    alerts = RiskEngine.evaluate(forecast: forecast, air: air, quakes: quakes, location: location);
+    alerts = RiskEngine.evaluate(
+      forecast: forecast,
+      air: air,
+      quakes: quakes,
+      location: location,
+      waterStations: waterStations,
+    );
   }
 
   Future<void> setLocation(AppLocation loc) async {
@@ -133,6 +154,26 @@ class AppState extends ChangeNotifier {
     final name = await api.reverseGeocode(p.latitude, p.longitude) ?? 'ตำแหน่งปัจจุบัน';
     await setLocation(AppLocation(name, p.latitude, p.longitude, fromGps: true));
     return null;
+  }
+
+  /// Nearest water-level station within [maxKm], or null.
+  WaterStation? nearestWaterStation({double maxKm = 30}) {
+    WaterStation? best;
+    var bestD = maxKm * 1000;
+    for (final w in waterStations) {
+      final d = haversine(location.lat, location.lon, w.lat, w.lon);
+      if (d < bestD) {
+        bestD = d;
+        best = w;
+      }
+    }
+    return best;
+  }
+
+  Future<void> togglePinnedHotline(String number) async {
+    if (!pinnedHotlines.remove(number)) pinnedHotlines.add(number);
+    notifyListeners();
+    await storage.setSet(Keys.pinnedHotlines, pinnedHotlines);
   }
 
   // ---- checklist ----
@@ -174,6 +215,7 @@ class AppState extends ChangeNotifier {
     contacts = [];
     medical = const MedicalInfo();
     familyPlan = {};
+    pinnedHotlines = {};
     forecast = null;
     notifyListeners();
     await refresh();

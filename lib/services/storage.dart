@@ -52,4 +52,6 @@ abstract class Keys {
   static const medical = 'medical';
   static const familyPlan = 'family_plan';
   static const onboarded = 'onboarded';
+  static const pinnedHotlines = 'pinned_hotlines';
+  static const safePlacesCache = 'safe_places_cache';
 }

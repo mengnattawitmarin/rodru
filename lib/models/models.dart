@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -25,12 +27,21 @@ class HourPoint {
   final DateTime time;
   final double temp, precip, gust;
   final int precipProb, code;
-  const HourPoint(this.time, this.temp, this.precip, this.precipProb, this.code, this.gust);
+  final int humidity;
+  final double feels;
+
+  /// Mid-level (700 hPa) "steering" wind that moves rain cells. Direction is
+  /// where the wind blows FROM (meteorological convention), km/h.
+  final double? wind700Speed, wind700Dir;
+  const HourPoint(this.time, this.temp, this.precip, this.precipProb, this.code, this.gust,
+      {this.humidity = 0, double? feels, this.wind700Speed, this.wind700Dir})
+      : feels = feels ?? temp;
 }
 
 class DayPoint {
   final DateTime date;
   final double tMax, tMin, precipSum, uvMax, gustMax;
+  final double feelsMax, sunshineHours;
   final int precipProbMax, code;
   final DateTime? sunrise, sunset;
   const DayPoint({
@@ -42,9 +53,11 @@ class DayPoint {
     required this.code,
     required this.uvMax,
     required this.gustMax,
+    double? feelsMax,
+    this.sunshineHours = 0,
     this.sunrise,
     this.sunset,
-  });
+  }) : feelsMax = feelsMax ?? tMax;
 }
 
 class Forecast {
@@ -72,6 +85,14 @@ class Forecast {
   static double _d(dynamic v) => v == null ? 0 : (v as num).toDouble();
   static int _i(dynamic v) => v == null ? 0 : (v as num).toInt();
 
+  /// Safe array access: returns null when the series is missing (e.g. an
+  /// older cached response) or the value is null.
+  static num? _at(Map<String, dynamic> m, String key, int i) {
+    final l = m[key];
+    if (l is! List || i >= l.length) return null;
+    return l[i] as num?;
+  }
+
   factory Forecast.fromJson(Map<String, dynamic> j, {DateTime? fetchedAt}) {
     final c = j['current'] as Map<String, dynamic>;
     final h = j['hourly'] as Map<String, dynamic>;
@@ -84,27 +105,33 @@ class Forecast {
       if (t.isBefore(now.subtract(const Duration(hours: 1)))) continue;
       hours.add(HourPoint(
         t,
-        _d((h['temperature_2m'] as List)[i]),
-        _d((h['precipitation'] as List)[i]),
-        _i((h['precipitation_probability'] as List)[i]),
-        _i((h['weather_code'] as List)[i]),
-        _d((h['wind_gusts_10m'] as List)[i]),
+        _d(_at(h, 'temperature_2m', i)),
+        _d(_at(h, 'precipitation', i)),
+        _i(_at(h, 'precipitation_probability', i)),
+        _i(_at(h, 'weather_code', i)),
+        _d(_at(h, 'wind_gusts_10m', i)),
+        humidity: _i(_at(h, 'relative_humidity_2m', i)),
+        feels: _at(h, 'apparent_temperature', i)?.toDouble(),
+        wind700Speed: _at(h, 'wind_speed_700hPa', i)?.toDouble(),
+        wind700Dir: _at(h, 'wind_direction_700hPa', i)?.toDouble(),
       ));
     }
     final dayTimes = (d['time'] as List).cast<String>();
     final days = <DayPoint>[];
     for (var i = 0; i < dayTimes.length; i++) {
-      final sr = (d['sunrise'] as List)[i];
-      final ss = (d['sunset'] as List)[i];
+      final sr = (d['sunrise'] as List?)?[i];
+      final ss = (d['sunset'] as List?)?[i];
       days.add(DayPoint(
         date: DateTime.parse(dayTimes[i]),
-        tMax: _d((d['temperature_2m_max'] as List)[i]),
-        tMin: _d((d['temperature_2m_min'] as List)[i]),
-        precipSum: _d((d['precipitation_sum'] as List)[i]),
-        precipProbMax: _i((d['precipitation_probability_max'] as List)[i]),
-        code: _i((d['weather_code'] as List)[i]),
-        uvMax: _d((d['uv_index_max'] as List)[i]),
-        gustMax: _d((d['wind_gusts_10m_max'] as List)[i]),
+        tMax: _d(_at(d, 'temperature_2m_max', i)),
+        tMin: _d(_at(d, 'temperature_2m_min', i)),
+        precipSum: _d(_at(d, 'precipitation_sum', i)),
+        precipProbMax: _i(_at(d, 'precipitation_probability_max', i)),
+        code: _i(_at(d, 'weather_code', i)),
+        uvMax: _d(_at(d, 'uv_index_max', i)),
+        gustMax: _d(_at(d, 'wind_gusts_10m_max', i)),
+        feelsMax: _at(d, 'apparent_temperature_max', i)?.toDouble(),
+        sunshineHours: _d(_at(d, 'sunshine_duration', i)) / 3600,
         sunrise: sr == null ? null : DateTime.parse(sr as String),
         sunset: ss == null ? null : DateTime.parse(ss as String),
       ));
@@ -122,6 +149,24 @@ class Forecast {
       days: days,
       fetchedAt: fetchedAt ?? DateTime.now(),
     );
+  }
+
+  /// Steering wind for the next few hours (average of first 3 hours that have it).
+  ({double speed, double fromDir})? get steeringWind {
+    final pts = hours.where((h) => h.wind700Speed != null && h.wind700Dir != null).take(3).toList();
+    if (pts.isEmpty) return null;
+    // vector average
+    var u = 0.0, v = 0.0;
+    for (final p in pts) {
+      final r = p.wind700Dir! * math.pi / 180;
+      u += p.wind700Speed! * math.sin(r);
+      v += p.wind700Speed! * math.cos(r);
+    }
+    u /= pts.length;
+    v /= pts.length;
+    final speed = math.sqrt(u * u + v * v);
+    final dir = (math.atan2(u, v) * 180 / math.pi + 360) % 360;
+    return (speed: speed, fromDir: dir);
   }
 }
 
@@ -172,6 +217,17 @@ class SafePlace {
   final String? phone;
   const SafePlace(this.name, this.kind, this.lat, this.lon, {this.phone});
   LatLng get latLng => LatLng(lat, lon);
+
+  Map<String, dynamic> toJson() => {'n': name, 'k': kind.index, 'a': lat, 'o': lon, if (phone != null) 'p': phone};
+  static SafePlace? fromJson(Map<String, dynamic> j) {
+    try {
+      return SafePlace(j['n'] as String, SafePlaceKind.values[(j['k'] as num).toInt()], (j['a'] as num).toDouble(),
+          (j['o'] as num).toDouble(),
+          phone: j['p'] as String?);
+    } catch (_) {
+      return null;
+    }
+  }
 
   String get kindLabel => switch (kind) {
         SafePlaceKind.hospital => 'โรงพยาบาล',
@@ -256,4 +312,135 @@ class MedicalInfo {
     if (medications.isNotEmpty) parts.add('ยาที่ใช้: $medications');
     return parts.join('\n');
   }
+}
+
+
+// ---------------- water levels (ThaiWater / HII) ----------------
+
+/// A telemetry water-level station from the National Hydroinformatics Data
+/// Center (ThaiWater, สสน.). [situation]: 1 น้ำน้อยวิกฤต · 2 น้ำน้อย · 3 ปกติ ·
+/// 4 น้ำมาก · 5 ล้นตลิ่ง.
+class WaterStation {
+  final String id, name, river, province, district, agency;
+  final double lat, lon;
+  final double? levelMsl, previousMsl, minBank, diffBank, storagePercent;
+  final bool overflow;
+  final int situation;
+  final DateTime time;
+  const WaterStation({
+    required this.id,
+    required this.name,
+    required this.river,
+    required this.province,
+    required this.district,
+    required this.agency,
+    required this.lat,
+    required this.lon,
+    required this.levelMsl,
+    required this.previousMsl,
+    required this.minBank,
+    required this.diffBank,
+    required this.storagePercent,
+    required this.overflow,
+    required this.situation,
+    required this.time,
+  });
+  LatLng get latLng => LatLng(lat, lon);
+
+  /// +1 rising, -1 falling, 0 steady/unknown.
+  int get trend {
+    if (levelMsl == null || previousMsl == null) return 0;
+    final d = levelMsl! - previousMsl!;
+    if (d > 0.01) return 1;
+    if (d < -0.01) return -1;
+    return 0;
+  }
+
+  String get situationLabel => switch (situation) {
+        5 => 'ล้นตลิ่ง',
+        4 => 'น้ำมาก',
+        3 => 'ปกติ',
+        2 => 'น้ำน้อย',
+        1 => 'น้ำน้อยวิกฤต',
+        _ => 'ไม่ทราบ',
+      };
+
+  Color get color => switch (situation) {
+        5 => const Color(0xFFFF5D52),
+        4 => const Color(0xFFFF9F43),
+        3 => const Color(0xFF55D68B),
+        2 => const Color(0xFFFFE066),
+        1 => const Color(0xFFB08850),
+        _ => Colors.white54,
+      };
+
+  /// "ต่ำกว่าตลิ่ง 1.20 ม." / "ล้นตลิ่ง 0.30 ม."
+  String? get bankText {
+    if (diffBank == null) return null;
+    return '${overflow ? 'ล้นตลิ่ง' : 'ต่ำกว่าตลิ่ง'} ${diffBank!.abs().toStringAsFixed(2)} ม.';
+  }
+
+  static double? _num(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse('$v');
+  }
+
+  static String _th(dynamic m) {
+    if (m is Map) return (m['th'] ?? m['en'] ?? '').toString();
+    return m?.toString() ?? '';
+  }
+
+  /// Parses one row of `waterlevel_load` → `waterlevel_data.data[]`.
+  static WaterStation? fromThaiWater(Map<String, dynamic> r) {
+    final st = r['station'];
+    if (st is! Map) return null;
+    final lat = _num(st['tele_station_lat']);
+    final lon = _num(st['tele_station_long']);
+    final t = DateTime.tryParse('${r['waterlevel_datetime'] ?? ''}');
+    if (lat == null || lon == null || t == null || lat == 0 || lon == 0) return null;
+    final geo = r['geocode'] is Map ? r['geocode'] as Map : const {};
+    final agency = r['agency'] is Map ? (r['agency'] as Map)['agency_shortname'] : null;
+    final diffText = '${r['diff_wl_bank_text'] ?? ''}';
+    final situation = (_num(r['situation_level']) ?? 0).toInt();
+    return WaterStation(
+      id: '${st['id']}',
+      name: _th(st['tele_station_name']).trim().isEmpty ? '${st['tele_station_oldcode'] ?? 'สถานี'}' : _th(st['tele_station_name']).trim(),
+      river: '${r['river_name'] ?? ''}',
+      province: _th(geo['province_name']),
+      district: _th(geo['amphoe_name']),
+      agency: _th(agency),
+      lat: lat,
+      lon: lon,
+      levelMsl: _num(r['waterlevel_msl']),
+      previousMsl: _num(r['waterlevel_msl_previous']),
+      minBank: _num(st['min_bank']),
+      diffBank: _num(r['diff_wl_bank']),
+      storagePercent: _num(r['storage_percent']),
+      overflow: situation == 5 || diffText.contains('ล้น'),
+      situation: situation,
+      time: t,
+    );
+  }
+}
+
+/// One frame of the rain radar animation.
+class RadarFrame {
+  final String urlTemplate;
+  final DateTime time;
+  final bool nowcast;
+  const RadarFrame(this.urlTemplate, this.time, {this.nowcast = false});
+}
+
+/// A ShakeMap intensity contour (Modified Mercalli Intensity).
+class MmiContour {
+  final double mmi;
+  final List<List<LatLng>> lines;
+  const MmiContour(this.mmi, this.lines);
+}
+
+/// Wind sample for the wind layer.
+class WindSample {
+  final double lat, lon, speed, fromDir;
+  const WindSample(this.lat, this.lon, this.speed, this.fromDir);
 }
