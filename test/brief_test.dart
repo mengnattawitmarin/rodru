@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rodru/data/content.dart';
 import 'package:rodru/logic/daily_brief.dart';
+import 'package:rodru/logic/quake_intensity.dart';
 import 'package:rodru/logic/risk.dart';
 import 'package:rodru/models/models.dart';
 import 'package:rodru/services/api.dart';
@@ -165,5 +166,25 @@ void main() {
     for (final h in hotlineDirectory) {
       expect(hotlineCategories, contains(h.category));
     }
+  });
+
+  test('quake intensity: M7.7 at ~1000 km feels IV–V (Bangkok 2025)', () {
+    final mmi = QuakeIntensity.estimate(7.7, 1000, 10);
+    expect(mmi, inInclusiveRange(4.0, 5.2));
+    expect(QuakeIntensity.radiusKm(7.7, 10, 4), greaterThan(1000));
+    expect(QuakeIntensity.radiusKm(3.0, 10, 8), 0);
+    expect(QuakeIntensity.roman(4.6), 'V');
+  });
+
+  test('steering wind vector average', () {
+    final now = DateTime.now();
+    final f = Forecast(
+      temp: 30, feels: 30, precip: 0, wind: 0, gust: 0, humidity: 50, code: 0, isDay: true,
+      hours: [for (var i = 0; i < 3; i++) HourPoint(now.add(Duration(hours: i)), 30, 0, 0, 0, 0, wind700Speed: 20, wind700Dir: 270)],
+      days: const [], fetchedAt: now,
+    );
+    final w = f.steeringWind!;
+    expect(w.speed, closeTo(20, .01));
+    expect(w.fromDir, closeTo(270, .01));
   });
 }

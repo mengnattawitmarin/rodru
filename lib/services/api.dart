@@ -188,7 +188,11 @@ class Api {
     ).timeout(const Duration(seconds: 45));
     if (res.statusCode != 200) throw ApiException('โหลดระดับน้ำไม่สำเร็จ (${res.statusCode})');
     final j = jsonDecode(utf8.decode(res.bodyBytes));
-    final rows = (j is Map ? (j['waterlevel_data'] as Map?)?['data'] : null);
+    Object? rows;
+    if (j is Map) {
+      final wl = j['waterlevel_data'];
+      if (wl is Map) rows = wl['data'];
+    }
     if (rows is! List) throw ApiException('รูปแบบข้อมูลระดับน้ำเปลี่ยนไป');
     final now = DateTime.now();
     final out = <WaterStation>[];
