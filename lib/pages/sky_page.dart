@@ -9,6 +9,7 @@ import '../logic/format.dart';
 import '../logic/suncalc.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'sky_ar_page.dart';
 
 class SkyPage extends StatefulWidget {
   const SkyPage({super.key});
@@ -205,6 +206,21 @@ class _SkyPageState extends State<SkyPage> {
           Expanded(child: _TideCard(series: _tide, loading: _tideLoading, checked: _tideChecked, day: day, refName: _tideRef)),
         ]),
 
+        // ---- AR camera ----
+        const SizedBox(height: 4),
+        SizedBox(
+          height: 54,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2F6FE0), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => SkyArPage(initialDate: day)),
+            ),
+            icon: const Icon(Icons.photo_camera, size: 26),
+            label: const Text('เปิดกล้อง AR ดูเส้นทางดวงอาทิตย์/ดวงจันทร์', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          ),
+        ),
+        const SizedBox(height: 6),
         // ---- compass ----
         const SectionTitle('เข็มทิศท้องฟ้า (Sky Compass)'),
         _SkyCompass(sunAz: sunNow.azimuth, sunAlt: sunNow.altitude, moonAz: moonNow.azimuth, moonAlt: moonNow.altitude),

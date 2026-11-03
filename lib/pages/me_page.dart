@@ -115,12 +115,12 @@ class MePage extends StatelessWidget {
         const SectionTitle('เกี่ยวกับแอป'),
         InfoCard(
           icon: Icons.info_outline,
-          title: 'RODRU รอดรู้ v0.2 (ต้นแบบทดลอง)',
+          title: 'RODRU รอดรู้ v0.3 (ต้นแบบทดลอง)',
           subtitle: 'แหล่งข้อมูล ข้อจำกัด และสัญญาอนุญาต',
           onTap: () => showAboutDialog(
             context: context,
             applicationName: 'RODRU รอดรู้',
-            applicationVersion: '0.2.0',
+            applicationVersion: '0.3.0',
             applicationLegalese: 'ต้นแบบเพื่อทดสอบ ไม่ใช่ระบบเตือนภัยทางการ',
             children: const [
               SizedBox(height: 12),

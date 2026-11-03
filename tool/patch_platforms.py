@@ -26,6 +26,7 @@ def patch_android():
         "android.permission.INTERNET",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
     ]
     add = "".join(
         f'    <uses-permission android:name="{p}"/>\n' for p in perms if p not in s
@@ -73,6 +74,7 @@ def patch_ios():
         p = plistlib.load(f)
     p["CFBundleDisplayName"] = APP_NAME
     p["NSLocationWhenInUseUsageDescription"] = "ใช้ตำแหน่งเพื่อแสดงอากาศ ความเสี่ยง และจุดปลอดภัยใกล้คุณ (ไม่ส่งขึ้นเซิร์ฟเวอร์)"
+    p["NSCameraUsageDescription"] = "ใช้กล้องเพื่อซ้อนเส้นทางดวงอาทิตย์และดวงจันทร์บนภาพจริง (ไม่บันทึกหรือส่งภาพ)"
     p["NSMotionUsageDescription"] = "ใช้เซนเซอร์เพื่อแสดงเข็มทิศทิศดวงอาทิตย์และดวงจันทร์"
     schemes = set(p.get("LSApplicationQueriesSchemes", []))
     schemes.update(["tel", "sms", "https", "comgooglemaps"])
