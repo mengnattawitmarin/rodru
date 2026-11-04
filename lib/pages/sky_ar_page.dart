@@ -234,8 +234,14 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
           }),
         ),
 
-        // top bar
-        SafeArea(
+        // top bar (must be Positioned: a non-positioned child of the Stack
+        // gets the full screen height and stretches into a grey column)
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: SafeArea(
+          bottom: false,
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: Row(children: [
@@ -245,7 +251,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(loc.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text(
                       _orient == null
@@ -263,6 +269,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
               IconButton.filledTonal(onPressed: _showFovSheet, icon: const Icon(Icons.tune)),
             ]),
           ),
+        ),
         ),
 
         if (_camError != null)
