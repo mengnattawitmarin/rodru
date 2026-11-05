@@ -7,6 +7,7 @@
 **RODRU รอดรู้** — แอปเตรียมรับมือภัยพิบัติภาษาไทย (Flutter, Android + iOS)
 - Repo: https://github.com/mengnattawitmarin/rodru
 - ดาวน์โหลด APK ล่าสุด: https://github.com/mengnattawitmarin/rodru/releases/latest
+- เวอร์ชันเว็บ (iPhone/Safari → เพิ่มไปยังหน้าจอโฮม): https://mengnattawitmarin.github.io/rodru/ — CI job `web` build แล้ว push ไป branch `gh-pages` (ต้องเปิด Settings → Pages → Branch gh-pages ครั้งเดียว)
 - เจ้าของ: mengnattawitmarin · ภาษา UI: ไทย · ธีม: dark navy (ดู `lib/theme.dart`)
 - ภาพดีไซน์ต้นแบบ: 4 หน้าจอ (หน้าหลัก, แผนที่สถานการณ์, เส้นทางไปจุดปลอดภัย, ท้องฟ้า & ธรรมชาติ)
 
@@ -86,6 +87,7 @@ Overpass (3 เซิร์ฟเวอร์สำรอง), OSRM demo, Nomina
 ## บันทึกการส่งต่อ (เพิ่มรายการใหม่ไว้บนสุด)
 | วันที่ | ผู้ทำ (AI/คน) | ทำอะไร | ค้าง/ข้อควรรู้ |
 |---|---|---|---|
+| 2026-11-05 | Claude (claude.ai) | เพิ่มเวอร์ชันเว็บ (PWA) สำหรับ iPhone ผ่าน GitHub Pages | บนเว็บ: เซนเซอร์เข็มทิศ/AR ใน Safari อาจไม่ทำงาน (iOS ต้องขอสิทธิ์ DeviceMotion), ThaiWater อาจติด CORS, ไม่มีแจ้งเตือน; แอป iOS จริงต้องมี Apple Developer + TestFlight |
 | 2026-11-03 | Claude (claude.ai) | แก้ "แพ็กเกจขัดแย้ง" ตอนติดตั้งทับ: build เก่าเซ็นด้วยคีย์สุ่มของ runner → ตอนนี้เซ็นด้วยคีย์ใน repo + CI ตรวจ | ผู้ใช้ต้องถอนแอปเก่า 1 ครั้ง (build-8 ขึ้นไปติดตั้งทับกันได้) |
 | 2026-11-03 | Claude (claude.ai) | v0.3: ทำ Backlog #1–#8 (ดู CHANGELOG) | ยังไม่ทดสอบบนเครื่องจริง; FOV กล้อง AR ปรับได้ในแอป; ThaiWater อาจเปลี่ยนรูปแบบข้อมูล (มี test parse) |
 | 2026-10-29 | Claude (claude.ai) | ปรับจาก MVP ไฟล์เดียวเป็น v0.2 ทั้งระบบ + CI APK | ยังไม่ทดสอบบนเครื่องจริง; Node20 actions warning (อัปเป็น checkout@v5/setup-java@v5 ได้) |
