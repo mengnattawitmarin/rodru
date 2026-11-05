@@ -130,7 +130,50 @@ def patch_ios():
     print("ios patched")
 
 
+def patch_web():
+    """PWA name/colours/icons so iPhone users can 'Add to Home Screen'."""
+    web = os.path.join(ROOT, "web")
+    if not os.path.isdir(web):
+        print("skip web: no web/")
+        return
+    import json
+    mpath = os.path.join(web, "manifest.json")
+    if os.path.exists(mpath):
+        m = json.load(open(mpath, encoding="utf-8"))
+        m.update({
+            "name": "รอดรู้ RODRU",
+            "short_name": APP_NAME,
+            "description": "แอปเตรียมรับมือภัยพิบัติภาษาไทย",
+            "background_color": "#071526",
+            "theme_color": "#071526",
+            "display": "standalone",
+            "orientation": "portrait",
+        })
+        json.dump(m, open(mpath, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    ipath = os.path.join(web, "index.html")
+    if os.path.exists(ipath):
+        s = open(ipath, encoding="utf-8").read()
+        s = re.sub(r"<title>.*?</title>", f"<title>{APP_NAME} RODRU</title>", s, count=1, flags=re.S)
+        s = re.sub(r'(<meta name="apple-mobile-web-app-title" content=")[^"]*', r"\g<1>" + APP_NAME, s)
+        s = s.replace('<html>', '<html lang="th">', 1)
+        if 'name="theme-color"' not in s:
+            s = s.replace("</head>", '  <meta name="theme-color" content="#071526">\n</head>', 1)
+        open(ipath, "w", encoding="utf-8").write(s)
+    icons = os.path.join(ROOT, "tool/icons/web")
+    for f in os.listdir(icons):
+        dst = os.path.join(web, "favicon.png" if f == "favicon.png" else ("icons/" + f if f.startswith("Icon") else f))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy(os.path.join(icons, f), dst)
+    # Flutter's template links icons/Icon-192.png as apple-touch-icon; point it at our opaque one.
+    if os.path.exists(ipath):
+        s = open(ipath, encoding="utf-8").read()
+        s = s.replace('href="icons/Icon-192.png"', 'href="apple-touch-icon.png"')
+        open(ipath, "w", encoding="utf-8").write(s)
+    print("web patched")
+
+
 if __name__ == "__main__":
     patch_android()
     patch_ios()
+    patch_web()
     sys.exit(0)

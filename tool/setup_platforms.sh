@@ -4,8 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ ! -d android ] || [ ! -d ios ]; then
-  flutter create --org com.rodru --project-name rodru --platforms android,ios .
+if [ ! -d android ] || [ ! -d ios ] || [ ! -d web ]; then
+  flutter create --org com.rodru --project-name rodru --platforms android,ios,web .
 fi
 python3 tool/patch_platforms.py
 

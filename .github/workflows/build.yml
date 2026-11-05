@@ -111,3 +111,40 @@ jobs:
             commit: ${{ github.sha }}
 
             ⚠️ ต้นแบบทดลอง — ไม่ใช่ระบบเตือนภัยทางการ
+
+  # Web version for iPhone (Safari → "Add to Home Screen").
+  # Published to https://<owner>.github.io/rodru/ via the gh-pages branch.
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate platform folders + apply settings
+        run: bash tool/setup_platforms.sh
+
+      - name: Build web
+        run: |
+          flutter pub get
+          set +e
+          flutter build web --release --base-href /${{ github.event.repository.name }}/ > web.txt 2>&1
+          code=$?
+          cat web.txt
+          if [ $code -ne 0 ]; then
+            echo "::error title=flutter build web::$(grep -v '^\s*$' web.txt | tail -60 | sed ':a;N;$!ba;s/\n/%0A/g')"
+            exit $code
+          fi
+
+      - name: Publish to GitHub Pages (gh-pages branch)
+        if: github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          force_orphan: true
+          commit_message: "Deploy web build ${{ github.run_number }}"
