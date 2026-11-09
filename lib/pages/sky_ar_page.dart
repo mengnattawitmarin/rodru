@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
@@ -8,6 +9,7 @@ import '../app_state.dart';
 import '../logic/format.dart';
 import '../logic/sky_projection.dart';
 import '../logic/suncalc.dart';
+import '../services/web_orientation.dart';
 import '../theme.dart';
 
 /// AR sky view: live camera + sun/moon paths for the chosen day,
@@ -29,6 +31,11 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
   List<double>? _g, _m; // low-passed sensor vectors
   DeviceOrientation3D? _orient;
   bool _sensorsOk = true;
+  // Web (iPhone Safari): orientation comes from the browser after the user
+  // taps a button (iOS requires a gesture to grant motion access).
+  StreamSubscription<WebOrientationReading>? _webSub;
+  bool _webGranted = false;
+  String? _webError;
 
   late DateTime _day; // local midnight of the selected day
   late int _minute; // minute of day being shown
@@ -52,7 +59,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
         });
       }
     });
-    _startSensors();
+    if (!kIsWeb) _startSensors();
     _startCamera();
   }
 
@@ -62,6 +69,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
     _clock?.cancel();
     _accSub?.cancel();
     _magSub?.cancel();
+    _webSub?.cancel();
     _cam?.dispose();
     super.dispose();
   }
@@ -129,6 +137,30 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
       onError: (_) => setState(() => _sensorsOk = false),
       cancelOnError: true,
     );
+  }
+
+  Future<void> _enableWebSensors() async {
+    final ok = await requestWebOrientationPermission();
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _webError = 'ไม่ได้รับอนุญาตให้ใช้เซนเซอร์ทิศ — ใน iPhone ไปที่ การตั้งค่า > Safari > ให้เว็บไซต์เข้าถึงการเคลื่อนไหว แล้วลองใหม่');
+      return;
+    }
+    setState(() {
+      _webGranted = true;
+      _webError = null;
+    });
+    _webSub = webOrientationStream().listen((r) {
+      final alpha = r.compassHeading != null ? (360 - r.compassHeading!) % 360 : r.alpha;
+      final o = DeviceOrientation3D.fromEuler(alpha, r.beta, r.gamma);
+      final prev = _orient;
+      const k = 0.25;
+      List<double> mix(List<double> a, List<double> b) => [for (var i = 0; i < 3; i++) a[i] + k * (b[i] - a[i])];
+      if (!mounted) return;
+      setState(() => _orient = prev == null
+          ? o
+          : DeviceOrientation3D(mix(prev.east, o.east), mix(prev.north, o.north), mix(prev.up, o.up)));
+    });
   }
 
   DateTime get _time => _day.add(Duration(minutes: _minute));
@@ -255,7 +287,11 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
                     Text(loc.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text(
                       _orient == null
-                          ? (_sensorsOk ? 'กำลังอ่านเซนเซอร์...' : 'เครื่องนี้ไม่มีเซนเซอร์ทิศ')
+                          ? (kIsWeb && !_webGranted
+                              ? 'แตะปุ่มด้านล่างเพื่อเปิดเซนเซอร์ทิศ'
+                              : _sensorsOk
+                                  ? 'กำลังอ่านเซนเซอร์... (ขยับโทรศัพท์เล็กน้อย)'
+                                  : 'เครื่องนี้ไม่มีเซนเซอร์ทิศ')
                           : () {
                               final d = _orient!.cameraDirection;
                               return 'กล้องชี้ ${d.$1.round()}° ${compassShort(d.$1)} • มุมเงย ${d.$2.round()}°';
@@ -272,6 +308,32 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
         ),
         ),
 
+        if (kIsWeb && !_webGranted)
+          Positioned.fill(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2F6FE0), minimumSize: const Size(260, 56)),
+                    onPressed: _enableWebSensors,
+                    icon: const Icon(Icons.explore),
+                    label: const Text('แตะเพื่อเปิดเซนเซอร์ทิศ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(12)),
+                    child: Text(
+                      _webError ?? 'iPhone จะถามสิทธิ์ "การเคลื่อนไหวและทิศทาง" ให้กด อนุญาต เพื่อให้เส้นดวงอาทิตย์ขยับตามมือถือ',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: _webError != null ? amber : Colors.white70, fontSize: 12.5),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
         if (_camError != null)
           Positioned(
             left: 16,

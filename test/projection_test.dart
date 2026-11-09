@@ -22,4 +22,16 @@ void main() {
     expect(p.project(0, 10)!.dy, lessThan(400));
     expect(p.project(180, 0), isNull);
   });
+
+  test('web Euler angles: upright facing north matches sensor orientation', () {
+    final e = DeviceOrientation3D.fromEuler(0, 90, 0);
+    final d = e.cameraDirection;
+    expect(d.$1 < 1 || d.$1 > 359, isTrue);
+    expect(d.$2.abs(), lessThan(1));
+    // facing east: iOS heading 90 → alpha 270
+    final east = DeviceOrientation3D.fromEuler(270, 90, 0).cameraDirection;
+    expect(east.$1, closeTo(90, 1));
+    // tilted up 30°
+    expect(DeviceOrientation3D.fromEuler(0, 120, 0).cameraDirection.$2, closeTo(30, 1));
+  });
 }

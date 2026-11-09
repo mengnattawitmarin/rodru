@@ -29,6 +29,21 @@ class DeviceOrientation3D {
     return DeviceOrientation3D([hx, hy, hz], [mx, my, mz], [ax, ay, az]);
   }
 
+  /// From W3C DeviceOrientation Euler angles (degrees). [alphaDeg] must be
+  /// referenced to north (absolute); on iOS use 360 − webkitCompassHeading.
+  static DeviceOrientation3D fromEuler(double alphaDeg, double betaDeg, double gammaDeg) {
+    const d = math.pi / 180;
+    final cA = math.cos(alphaDeg * d), sA = math.sin(alphaDeg * d);
+    final cB = math.cos(betaDeg * d), sB = math.sin(betaDeg * d);
+    final cG = math.cos(gammaDeg * d), sG = math.sin(gammaDeg * d);
+    // Rows of the device→earth rotation matrix = earth axes in device coords.
+    return DeviceOrientation3D(
+      [cA * cG - sA * sB * sG, -cB * sA, cA * sG + cG * sA * sB],
+      [cG * sA + cA * sB * sG, cA * cB, sA * sG - cA * cG * sB],
+      [-cB * sG, sB, cB * cG],
+    );
+  }
+
   /// Converts a sky direction (compass azimuth°, altitude°) to device coords.
   List<double> toDevice(double azDeg, double altDeg) {
     final az = azDeg * math.pi / 180, alt = altDeg * math.pi / 180;
