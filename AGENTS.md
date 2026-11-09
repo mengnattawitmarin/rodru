@@ -87,6 +87,7 @@ Overpass (3 เซิร์ฟเวอร์สำรอง), OSRM demo, Nomina
 ## บันทึกการส่งต่อ (เพิ่มรายการใหม่ไว้บนสุด)
 | วันที่ | ผู้ทำ (AI/คน) | ทำอะไร | ค้าง/ข้อควรรู้ |
 |---|---|---|---|
+| 2026-11-09 | Claude (claude.ai) | AR iPhone รวน: `webkitCompassHeading` แกว่งตอนถือตั้ง → เรียน offset (alpha→ทิศเหนือ) ตอนวางราบ แล้วใช้ alpha จากไจโร + ปุ่มปรับเทียบเล็งดวงอาทิตย์/จันทร์ + แก้ทิศ/FOV ด้วยมือ (จำค่าใน Storage `ar_az_offset`, `ar_vfov`) | รอผลทดสอบ iPhone; alpha ของ iOS อาจ drift ช้า ๆ — วางราบอีกครั้งเพื่อแก้ |
 | 2026-11-09 | Claude (claude.ai) | AR บนเว็บ/iPhone: ใช้ `deviceorientation` + `webkitCompassHeading` ผ่าน `lib/services/web_orientation*.dart` (conditional export) และปุ่มขอสิทธิ์ (iOS ต้องกดเอง) | ยังไม่ยืนยันความแม่นยำบน iPhone จริง |
 | 2026-11-05 | Claude (claude.ai) | เพิ่มเวอร์ชันเว็บ (PWA) สำหรับ iPhone ผ่าน GitHub Pages | บนเว็บ: เซนเซอร์เข็มทิศ/AR ใน Safari อาจไม่ทำงาน (iOS ต้องขอสิทธิ์ DeviceMotion), ThaiWater อาจติด CORS, ไม่มีแจ้งเตือน; แอป iOS จริงต้องมี Apple Developer + TestFlight |
 | 2026-11-03 | Claude (claude.ai) | แก้ "แพ็กเกจขัดแย้ง" ตอนติดตั้งทับ: build เก่าเซ็นด้วยคีย์สุ่มของ runner → ตอนนี้เซ็นด้วยคีย์ใน repo + CI ตรวจ | ผู้ใช้ต้องถอนแอปเก่า 1 ครั้ง (build-8 ขึ้นไปติดตั้งทับกันได้) |
