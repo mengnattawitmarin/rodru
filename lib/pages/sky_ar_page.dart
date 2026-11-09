@@ -35,6 +35,9 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
   // taps a button (iOS requires a gesture to grant motion access).
   StreamSubscription<WebOrientationReading>? _webSub;
   bool _webGranted = false;
+  double? _alphaOffset; // iOS: gyro alpha → true north, learned while flat
+  int _flatSamples = 0;
+  bool _needFlat = false;
   String? _webError;
 
   late DateTime _day; // local midnight of the selected day
@@ -155,15 +158,38 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
       _webError = null;
     });
     _webSub = webOrientationStream().listen((r) {
-      final alpha = r.compassHeading != null ? (360 - r.compassHeading!) % 360 : r.alpha;
+      double alpha;
+      if (r.compassHeading != null) {
+        // iOS: webkitCompassHeading is only trustworthy when the phone is
+        // roughly flat; held upright (the AR pose) it wobbles and jumps.
+        // So learn the offset between the gyro-stable `alpha` and true north
+        // while flat, then keep using alpha + offset when the phone is raised.
+        final flat = r.beta.abs() < 45 && r.gamma.abs() < 45;
+        if (flat) {
+          final sample = wrap180(360 - r.compassHeading! - r.alpha);
+          final cur = _alphaOffset;
+          _alphaOffset = cur == null ? sample : wrap180(cur + 0.15 * wrap180(sample - cur));
+          _flatSamples++;
+        }
+        if (_alphaOffset == null || _flatSamples < 8) {
+          if (mounted) setState(() => _needFlat = true);
+          return;
+        }
+        alpha = (r.alpha + _alphaOffset! + 360) % 360;
+      } else {
+        alpha = r.alpha; // Android Chrome: deviceorientationabsolute is north-referenced
+      }
       final o = DeviceOrientation3D.fromEuler(alpha, r.beta, r.gamma);
       final prev = _orient;
-      const k = 0.25;
+      const k = 0.3;
       List<double> mix(List<double> a, List<double> b) => [for (var i = 0; i < 3; i++) a[i] + k * (b[i] - a[i])];
       if (!mounted) return;
-      setState(() => _orient = prev == null
-          ? o
-          : DeviceOrientation3D(mix(prev.east, o.east), mix(prev.north, o.north), mix(prev.up, o.up)));
+      setState(() {
+        _needFlat = false;
+        _orient = prev == null
+            ? o
+            : DeviceOrientation3D(mix(prev.east, o.east), mix(prev.north, o.north), mix(prev.up, o.up));
+      });
     });
   }
 
@@ -274,6 +300,20 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
                   },
                   onChangeEnd: (_) => _saveCalibration(),
                 ),
+                if (kIsWeb)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _alphaOffset = null;
+                        _flatSamples = 0;
+                        _orient = null;
+                        _needFlat = true;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    icon: const Icon(Icons.explore),
+                    label: const Text('หาทิศเหนือใหม่ (วางมือถือราบ)'),
+                  ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -397,6 +437,25 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
         ),
         ),
 
+        if (kIsWeb && _webGranted && _needFlat)
+          Positioned.fill(
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(16)),
+                child: const Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.screen_rotation_alt, size: 40, color: amber),
+                  SizedBox(height: 10),
+                  Text('วางโทรศัพท์ราบ (หน้าจอหงายขึ้น) สัก 2 วินาที',
+                      textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  SizedBox(height: 6),
+                  Text('เพื่อให้แอปหาทิศเหนือ แล้วค่อยยกกล้องขึ้น — iPhone อ่านเข็มทิศได้นิ่งเฉพาะตอนวางราบ',
+                      textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: Colors.white70)),
+                ]),
+              ),
+            ),
+          ),
         if (kIsWeb && !_webGranted)
           Positioned.fill(
             child: Center(
