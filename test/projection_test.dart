@@ -34,4 +34,13 @@ void main() {
     // tilted up 30°
     expect(DeviceOrientation3D.fromEuler(0, 120, 0).cameraDirection.$2, closeTo(30, 1));
   });
+
+  test('azimuth offset corrects a constant compass error', () {
+    // compass reads 10° too high: phone thinks it faces 10°, really faces 0°
+    final p = SkyProjector(orientation: o, size: const Size(400, 800), focalPx: 500, azOffset: -10);
+    // a body truly at 350° should now be drawn at the centre... (o faces 0°, offset -10 → az 10 maps to centre)
+    expect(p.project(10, 0)!.dx, closeTo(200, .5));
+    expect(wrap180(350 - 0), closeTo(-10, .001));
+    expect(wrap180(190), closeTo(-170, .001));
+  });
 }

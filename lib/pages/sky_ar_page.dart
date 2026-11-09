@@ -42,6 +42,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
   bool _followNow = true;
   Timer? _clock;
   double _vFov = 62; // degrees, adjustable
+  double _azOffset = 0; // compass correction, set by aiming at the sun/moon
 
   @override
   void initState() {
@@ -59,6 +60,9 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
         });
       }
     });
+    final st = AppScope.read(context).storage;
+    _vFov = double.tryParse(st.getString('ar_vfov') ?? '') ?? 62;
+    _azOffset = double.tryParse(st.getString('ar_az_offset') ?? '') ?? 0;
     if (!kIsWeb) _startSensors();
     _startCamera();
   }
@@ -179,34 +183,117 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
     });
   }
 
+  void _saveCalibration() {
+    final st = AppScope.read(context).storage;
+    st.setString('ar_vfov', _vFov.toStringAsFixed(1));
+    st.setString('ar_az_offset', _azOffset.toStringAsFixed(1));
+  }
+
+  /// Aim the crosshair at the real sun or moon, then call this: the compass
+  /// error is the difference between where the phone thinks it points and
+  /// where the body really is.
+  String _alignTo({required bool sun}) {
+    final o = _orient;
+    if (o == null) return 'ยังอ่านเซนเซอร์ไม่ได้';
+    final loc = AppScope.read(context).location;
+    final now = DateTime.now();
+    final body = sun ? sunPosition(now, loc.lat, loc.lon) : moonPosition(now, loc.lat, loc.lon);
+    if (body.altitude < -1) return '${sun ? 'ดวงอาทิตย์' : 'ดวงจันทร์'}อยู่ใต้ขอบฟ้าตอนนี้';
+    final cam = o.cameraDirection;
+    final dAlt = cam.$2 - body.altitude;
+    setState(() => _azOffset = wrap180(cam.$1 - body.azimuth));
+    _saveCalibration();
+    return 'ปรับแล้ว: แก้ทิศ ${_azOffset.toStringAsFixed(0)}°'
+        '${dAlt.abs() > 10 ? ' (มุมเงยกล้องต่างจากของจริง ${dAlt.abs().round()}° — ลองเล็งให้ตรงกลางเป้าแล้วกดใหม่)' : ''}';
+  }
+
   void _showFovSheet() {
+    String? msg;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('ปรับเทียบ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text(
-                '1) โบกโทรศัพท์เป็นเลข 8 เพื่อปรับเทียบเข็มทิศ  2) เล็งดวงอาทิตย์/ดวงจันทร์จริง แล้วปรับมุมกล้องจนวงกลมตรงกับของจริง',
-                style: TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-              const SizedBox(height: 12),
-              Text('มุมรับภาพแนวตั้งของกล้อง: ${_vFov.round()}°'),
-              Slider(
-                value: _vFov,
-                min: 35,
-                max: 90,
-                onChanged: (v) {
-                  setSheet(() {});
-                  setState(() => _vFov = v);
-                },
-              ),
-            ]),
-          ),
-        ),
+        builder: (ctx, setSheet) {
+          final loc = AppScope.read(context).location;
+          final now = DateTime.now();
+          final sunUp = sunPosition(now, loc.lat, loc.lon).altitude > -1;
+          final moonUp = moonPosition(now, loc.lat, loc.lon).altitude > -1;
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('ปรับเทียบ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                const Text(
+                  'ถ้าเส้นไม่ตรงกับของจริง: เล็ง "เป้ากลางจอ" ไปที่ดวงอาทิตย์หรือดวงจันทร์จริง แล้วกดปุ่มด้านล่าง '
+                  'แอปจะแก้ทิศให้และจำไว้ (ห้ามมองดวงอาทิตย์ตรง ๆ — ดูจากจอเท่านั้น)',
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                ),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: amber, foregroundColor: Colors.black),
+                      onPressed: sunUp ? () => setSheet(() => msg = _alignTo(sun: true)) : null,
+                      icon: const Icon(Icons.wb_sunny),
+                      label: Text(sunUp ? 'เล็งดวงอาทิตย์อยู่' : 'อาทิตย์ตกแล้ว'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF7FD1FF), foregroundColor: Colors.black),
+                      onPressed: moonUp ? () => setSheet(() => msg = _alignTo(sun: false)) : null,
+                      icon: const Icon(Icons.nightlight_round),
+                      label: Text(moonUp ? 'เล็งดวงจันทร์อยู่' : 'จันทร์ยังไม่ขึ้น'),
+                    ),
+                  ),
+                ]),
+                if (msg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(msg!, style: const TextStyle(color: green, fontSize: 13))),
+                const SizedBox(height: 14),
+                Text('แก้ทิศเข็มทิศด้วยมือ: ${_azOffset.toStringAsFixed(0)}°'),
+                Slider(
+                  value: _azOffset.clamp(-180.0, 180.0),
+                  min: -180,
+                  max: 180,
+                  divisions: 360,
+                  onChanged: (v) {
+                    setSheet(() {});
+                    setState(() => _azOffset = v);
+                  },
+                  onChangeEnd: (_) => _saveCalibration(),
+                ),
+                Text('มุมรับภาพแนวตั้งของกล้อง: ${_vFov.round()}° (ขนาด/ระยะห่างของเส้นบนจอ)'),
+                Slider(
+                  value: _vFov,
+                  min: 35,
+                  max: 90,
+                  onChanged: (v) {
+                    setSheet(() {});
+                    setState(() => _vFov = v);
+                  },
+                  onChangeEnd: (_) => _saveCalibration(),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      setSheet(() => msg = 'รีเซ็ตแล้ว');
+                      setState(() {
+                        _azOffset = 0;
+                        _vFov = 62;
+                      });
+                      _saveCalibration();
+                    },
+                    child: const Text('รีเซ็ตค่าปรับเทียบ'),
+                  ),
+                ),
+                const Text('เคล็ดลับ: ถือโทรศัพท์แนวตั้ง ห่างโลหะ/แม่เหล็ก/ลำโพง และโบกเป็นเลข 8 ก่อนปรับ',
+                    style: TextStyle(fontSize: 12, color: Colors.white54)),
+              ]),
+            ),
+          );
+        },
       ),
     );
   }
@@ -257,6 +344,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
               painter: _SkyArPainter(
                 orientation: _orient,
                 focal: SkyProjector.focalFor(size, _vFov, previewAspect),
+                azOffset: _azOffset,
                 lat: loc.lat,
                 lon: loc.lon,
                 day: _day,
@@ -293,7 +381,8 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
                                   ? 'กำลังอ่านเซนเซอร์... (ขยับโทรศัพท์เล็กน้อย)'
                                   : 'เครื่องนี้ไม่มีเซนเซอร์ทิศ')
                           : () {
-                              final d = _orient!.cameraDirection;
+                              final raw = _orient!.cameraDirection;
+                              final d = ((raw.$1 - _azOffset + 360) % 360, raw.$2);
                               return 'กล้องชี้ ${d.$1.round()}° ${compassShort(d.$1)} • มุมเงย ${d.$2.round()}°';
                             }(),
                       style: const TextStyle(fontSize: 12, color: Colors.white70),
@@ -439,7 +528,16 @@ class _Info extends StatelessWidget {
 }
 
 class _SkyArPainter extends CustomPainter {
-  _SkyArPainter({required this.orientation, required this.focal, required this.lat, required this.lon, required this.day, required this.time});
+  _SkyArPainter({
+    required this.orientation,
+    required this.focal,
+    required this.lat,
+    required this.lon,
+    required this.day,
+    required this.time,
+    this.azOffset = 0,
+  });
+  final double azOffset;
   final DeviceOrientation3D? orientation;
   final double focal, lat, lon;
   final DateTime day, time;
@@ -451,7 +549,7 @@ class _SkyArPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final o = orientation;
     if (o == null) return;
-    final p = SkyProjector(orientation: o, size: size, focalPx: focal);
+    final p = SkyProjector(orientation: o, size: size, focalPx: focal, azOffset: azOffset);
     final tp = TextPainter(textDirection: TextDirection.ltr);
     void label(String s, Offset at, {Color color = Colors.white, double fs = 13, bool bold = false, Offset shift = Offset.zero}) {
       tp.text = TextSpan(
@@ -566,11 +664,12 @@ class _SkyArPainter extends CustomPainter {
     canvas.drawCircle(c, 26, ch);
     canvas.drawLine(c - const Offset(40, 0), c + const Offset(40, 0), ch);
     canvas.drawLine(c - const Offset(0, 40), c + const Offset(0, 40), ch);
-    final d = o.cameraDirection;
+    final raw = o.cameraDirection;
+    final d = ((raw.$1 - azOffset + 360) % 360, raw.$2);
     label('${d.$1.toStringAsFixed(1)}° ${d.$2 >= 0 ? '+' : ''}${d.$2.toStringAsFixed(1)}°', c, fs: 14, bold: true, shift: const Offset(70, 34));
   }
 
   @override
   bool shouldRepaint(_SkyArPainter old) =>
-      old.orientation != orientation || old.focal != focal || old.time != time || old.day != day || old.lat != lat;
+      old.orientation != orientation || old.focal != focal || old.azOffset != azOffset || old.time != time || old.day != day || old.lat != lat;
 }

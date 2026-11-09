@@ -68,11 +68,15 @@ class DeviceOrientation3D {
 
 /// Pinhole projection onto the screen.
 class SkyProjector {
-  SkyProjector({required this.orientation, required this.size, required this.focalPx});
+  SkyProjector({required this.orientation, required this.size, required this.focalPx, this.azOffset = 0});
 
   final DeviceOrientation3D orientation;
   final Size size;
   final double focalPx;
+
+  /// Compass error correction (deg): measured camera azimuth − true azimuth.
+  /// Set by aiming at the real sun/moon (see the calibration sheet).
+  final double azOffset;
 
   /// Focal length (px) for a preview that covers [screen] with the camera's
   /// vertical field of view [vFovDeg] along the long (portrait height) side.
@@ -84,9 +88,17 @@ class SkyProjector {
 
   /// Screen point, or null if the direction is behind the camera.
   Offset? project(double azDeg, double altDeg) {
-    final v = orientation.toDevice(azDeg, altDeg);
+    final v = orientation.toDevice(azDeg + azOffset, altDeg);
     final depth = -v[2];
     if (depth < 0.05) return null;
     return Offset(size.width / 2 + focalPx * v[0] / depth, size.height / 2 - focalPx * v[1] / depth);
   }
+}
+
+/// Normalises an angle difference to (−180, 180].
+double wrap180(double deg) {
+  var d = deg % 360;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return d;
 }
