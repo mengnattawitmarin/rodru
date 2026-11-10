@@ -54,4 +54,13 @@ abstract class Keys {
   static const onboarded = 'onboarded';
   static const pinnedHotlines = 'pinned_hotlines';
   static const safePlacesCache = 'safe_places_cache';
+  static const members = 'family_members';
+  static const emergencyMode = 'emergency_mode';
+  static const textScale = 'text_scale';
+  static const dismissedNotices = 'dismissed_notices';
+  static const cacheAir = 'cache_air';
+  static const cacheQuakes = 'cache_quakes';
+  static const cacheWater = 'cache_water';
+  static const cacheRadiation = 'cache_radiation';
+  static const cacheNotices = 'cache_notices';
 }

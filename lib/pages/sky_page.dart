@@ -196,7 +196,7 @@ class _SkyPageState extends State<SkyPage> {
                 const SizedBox(height: 8),
                 Text(illum.phaseName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
                 Text('สว่าง ${(illum.fraction * 100).round()}%', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                Text(illum.thaiLunarDay, style: const TextStyle(fontSize: 10, color: Colors.white60)),
+                Text(illum.thaiLunarDay, style: const TextStyle(fontSize: 12, color: Colors.white60)),
                 const SizedBox(height: 4),
                 Text('ขึ้น ${hhmm(mt.rise)} • ตก ${hhmm(mt.set)}', style: const TextStyle(fontSize: 12, color: Colors.white70)),
               ]),
@@ -242,13 +242,13 @@ class _TimeBox extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(14)),
         child: Column(crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
           Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, color: amber, size: 18),
             const SizedBox(width: 6),
             Text(hhmm(time), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
           ]),
-          if (sub != null) Text(sub!, style: const TextStyle(fontSize: 10, color: Colors.white60)),
+          if (sub != null) Text(sub!, style: const TextStyle(fontSize: 12, color: Colors.white60)),
         ]),
       );
 }
@@ -285,7 +285,7 @@ class _SunArcPainter extends CustomPainter {
     }
     final tp = TextPainter(textDirection: TextDirection.ltr);
     for (final e in [('E', w * .1), ('W', w * .9)]) {
-      tp.text = TextSpan(text: e.$1, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold));
+      tp.text = TextSpan(text: e.$1, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold));
       tp.layout();
       tp.paint(canvas, Offset(e.$2 - tp.width / 2, baseY + 2));
     }
@@ -366,11 +366,11 @@ class _TideCard extends StatelessWidget {
     return Panel(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('น้ำขึ้น-น้ำลง', style: TextStyle(fontWeight: FontWeight.bold, color: blue)),
-        if (refName != null) Text('จุดอ้างอิง: $refName', style: const TextStyle(fontSize: 10, color: Colors.white60)),
+        if (refName != null) Text('จุดอ้างอิง: $refName', style: const TextStyle(fontSize: 12, color: Colors.white60)),
         const SizedBox(height: 6),
         body,
         const SizedBox(height: 4),
-        const Text('แบบจำลอง ±1 ชม. ไม่ใช่ตารางน้ำกรมอุทกศาสตร์', style: TextStyle(fontSize: 9, color: amber)),
+        const Text('แบบจำลอง ±1 ชม. ไม่ใช่ตารางน้ำกรมอุทกศาสตร์', style: TextStyle(fontSize: 12, color: amber)),
       ]),
     );
   }
@@ -516,7 +516,7 @@ class _SkyCompassState extends State<_SkyCompass> {
         else if (_active)
           Column(children: [
             Text('หันไปทิศ${compassThai(heading)} ${heading.round()}°', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const Text('วางโทรศัพท์ราบ ห่างโลหะ • โบกเป็นเลข 8 เพื่อปรับเทียบ', style: TextStyle(fontSize: 11, color: Colors.white60)),
+            const Text('วางโทรศัพท์ราบ ห่างโลหะ • โบกเป็นเลข 8 เพื่อปรับเทียบ', style: TextStyle(fontSize: 12, color: Colors.white60)),
             TextButton(onPressed: _stop, child: const Text('ปิดเข็มทิศ')),
           ])
         else
@@ -570,7 +570,7 @@ class _CompassPainter extends CustomPainter {
         ..color = color.withValues(alpha: up ? .7 : .25)
         ..strokeWidth = 2);
       canvas.drawCircle(p, 13, Paint()..color = color.withValues(alpha: up ? 1 : .35));
-      tp.text = TextSpan(text: label, style: const TextStyle(fontSize: 10, color: Colors.white));
+      tp.text = TextSpan(text: label, style: const TextStyle(fontSize: 12, color: Colors.white));
       tp.layout();
       tp.paint(canvas, p + Offset(-tp.width / 2, 15));
     }

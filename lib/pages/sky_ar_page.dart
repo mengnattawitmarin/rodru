@@ -536,7 +536,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
                         child: Column(children: [
                           Text('${thaiShortDate(_day)} ${_day.year + 543}', style: const TextStyle(fontSize: 12, color: Colors.white70)),
                           Text(hhmm(t), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                          if (!_followNow) const Text('แตะเพื่อกลับเป็น "ตอนนี้"', style: TextStyle(fontSize: 10, color: amber)),
+                          if (!_followNow) const Text('แตะเพื่อกลับเป็น "ตอนนี้"', style: TextStyle(fontSize: 12, color: amber)),
                         ]),
                       ),
                     ),
@@ -557,7 +557,7 @@ class _SkyArPageState extends State<SkyArPage> with WidgetsBindingObserver {
                 ),
                 const Padding(
                   padding: EdgeInsets.only(bottom: 6),
-                  child: Text('⚠️ อย่ามองดวงอาทิตย์ตรง ๆ ผ่านกล้องหรือด้วยตาเปล่า', style: TextStyle(fontSize: 10.5, color: Colors.white54)),
+                  child: Text('⚠️ อย่ามองดวงอาทิตย์ตรง ๆ ผ่านกล้องหรือด้วยตาเปล่า', style: TextStyle(fontSize: 12, color: Colors.white54)),
                 ),
               ]),
             ),
@@ -579,9 +579,9 @@ class _Info extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
         decoration: BoxDecoration(border: Border(top: BorderSide(color: color, width: 3)), color: Colors.white.withValues(alpha: .05)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           Text(v1, style: const TextStyle(fontSize: 12)),
-          if (v2.isNotEmpty) Text(v2, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          if (v2.isNotEmpty) Text(v2, style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
       );
 }

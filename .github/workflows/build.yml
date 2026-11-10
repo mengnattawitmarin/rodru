@@ -3,6 +3,10 @@ name: Build APK
 on:
   push:
     branches: [main]
+    # Data files are read by the app at runtime; docs don't affect the build.
+    paths-ignore:
+      - "data/**"
+      - "**.md"
   pull_request:
   workflow_dispatch:
 
@@ -67,7 +71,7 @@ jobs:
         run: |
           set +e
           flutter build apk --release \
-            --build-name=0.3.${{ github.run_number }} \
+            --build-name=0.4.${{ github.run_number }} \
             --build-number=${{ github.run_number }} > build.txt 2>&1
           code=$?
           cat build.txt

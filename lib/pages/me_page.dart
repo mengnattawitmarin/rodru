@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../app_state.dart';
 import '../data/content.dart';
 import '../models/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'emergency_page.dart';
 import 'hotlines_page.dart';
 import 'location_picker.dart';
+import 'onboarding_page.dart';
 import 'sos_page.dart';
 
 class MePage extends StatelessWidget {
@@ -96,8 +99,15 @@ class MePage extends StatelessWidget {
         InfoCard(
           icon: Icons.family_restroom,
           title: 'แผนครอบครัว',
-          subtitle: 'จุดนัดพบ เส้นทางอพยพ',
+          subtitle: 'จุดนัดพบ เส้นทางอพยพ ติดต่อกันเมื่อเครือข่ายล่ม',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FamilyPlanPage())),
+        ),
+        InfoCard(
+          icon: Icons.badge,
+          color: amber,
+          title: 'บัตรข้อมูลสมาชิกครอบครัว (${s.members.length})',
+          subtitle: 'เด็ก ผู้สูงอายุ ผู้ป่วย — กรุ๊ปเลือด ยา เบอร์ผู้ปกครอง',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MembersPage())),
         ),
 
         SectionTitle('สายด่วนฉุกเฉิน', trailing: 'ดูทั้งหมด ${hotlineDirectory.length}', onTrailing: () => openHotlines(context)),
@@ -112,15 +122,45 @@ class MePage extends StatelessWidget {
             ),
         ]),
 
+        const SectionTitle('การแสดงผล & โหมด'),
+        Panel(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('ขนาดตัวอักษร', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            SegmentedButton<double>(
+              segments: const [
+                ButtonSegment(value: 1.0, label: Text('ปกติ')),
+                ButtonSegment(value: 1.15, label: Text('ใหญ่')),
+                ButtonSegment(value: 1.3, label: Text('ใหญ่มาก')),
+              ],
+              selected: {s.textScale},
+              onSelectionChanged: (v) => s.setTextScale(v.first),
+            ),
+          ]),
+        ),
+        InfoCard(
+          icon: Icons.battery_saver,
+          color: amber,
+          title: 'โหมดฉุกเฉิน (ประหยัดแบต)',
+          subtitle: s.emergencyMode ? 'เปิดอยู่ — แอปจะเปิดเข้าโหมดนี้' : 'จอมืด ปุ่มใหญ่ เฉพาะสิ่งจำเป็น',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyPage())),
+        ),
+        InfoCard(
+          icon: Icons.school,
+          title: 'ดูหน้าแนะนำแอปอีกครั้ง',
+          subtitle: 'ข้อจำกัดของแอป เลือกพื้นที่ ขนาดตัวอักษร',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnboardingPage(replay: true))),
+        ),
+
         const SectionTitle('เกี่ยวกับแอป'),
         InfoCard(
           icon: Icons.info_outline,
-          title: 'RODRU รอดรู้ v0.3 (ต้นแบบทดลอง)',
+          title: 'RODRU รอดรู้ v0.4 (ต้นแบบทดลอง)',
           subtitle: 'แหล่งข้อมูล ข้อจำกัด และสัญญาอนุญาต',
           onTap: () => showAboutDialog(
             context: context,
             applicationName: 'RODRU รอดรู้',
-            applicationVersion: '0.3.0',
+            applicationVersion: '0.4.0',
             applicationLegalese: 'ต้นแบบเพื่อทดสอบ ไม่ใช่ระบบเตือนภัยทางการ',
             children: const [
               SizedBox(height: 12),
@@ -131,13 +171,21 @@ class MePage extends StatelessWidget {
                 '• เรดาร์ฝน: RainViewer\n'
                 '• แผนที่และสถานที่: © OpenStreetMap contributors (ODbL)\n'
                 '• เส้นทาง: OSRM\n'
-                '• ดวงอาทิตย์/ดวงจันทร์: คำนวณในเครื่อง (SunCalc)\n\n'
+                '• ดวงอาทิตย์/ดวงจันทร์: คำนวณในเครื่อง (SunCalc)\n'
+                '• ระดับน้ำ: ThaiWater (สสน.)\n'
+                '• ระดับรังสีแกมมา: สำนักงานปรมาณูเพื่อสันติ (ปส.) รายงานรายสัปดาห์\n\n'
                 'ข้อจำกัด: ระดับเฝ้าระวังคำนวณจากพยากรณ์ ไม่ใช่ประกาศของรัฐ '
                 'จุดปลอดภัยยังไม่ได้ยืนยันโดยหน่วยงาน',
                 style: TextStyle(fontSize: 12),
               ),
             ],
           ),
+        ),
+        InfoCard(
+          icon: Icons.privacy_tip_outlined,
+          title: 'นโยบายความเป็นส่วนตัว',
+          subtitle: 'ข้อมูลอะไรเก็บที่ไหน — ทุกอย่างอยู่ในเครื่องคุณ',
+          onTap: () => openWeb(context, 'https://github.com/mengnattawitmarin/rodru/blob/main/PRIVACY.md'),
         ),
         InfoCard(
           icon: Icons.delete_forever,
@@ -246,6 +294,9 @@ class _FamilyPlanPageState extends State<FamilyPlanPage> {
     'route': 'เส้นทางอพยพหลัก / สำรอง',
     'shelter': 'ศูนย์พักพิงที่ทางการกำหนด (ถามจาก อบต./เทศบาล)',
     'care': 'ใครดูแลเด็ก ผู้สูงอายุ ผู้ป่วย สัตว์เลี้ยง',
+    'comm': 'ถ้าโทรศัพท์/เน็ตล่ม จะติดต่อกันยังไง (SMS, นัดเวลา, ฝากข้อความกับเพื่อนบ้าน)',
+    'outContact': 'ผู้ติดต่อนอกพื้นที่ (ญาติต่างจังหวัด ชื่อ/เบอร์) — ทุกคนโทรแจ้งคนนี้',
+    'radio': 'สถานีวิทยุ/ช่องทางรับประกาศในพื้นที่ และสัญญาณเตือนภัย',
     'notes': 'บันทึกอื่น ๆ (เบรกเกอร์ วาล์วแก๊ส ประกัน)',
   };
   late final Map<String, TextEditingController> _c;
@@ -282,6 +333,180 @@ class _FamilyPlanPageState extends State<FamilyPlanPage> {
             child: const Text('บันทึก'),
           ),
           const Disclaimer('แนะนำให้พิมพ์หรือจดแผนนี้ไว้บนกระดาษด้วย เผื่อโทรศัพท์แบตหมด'),
+        ]),
+      );
+}
+
+
+class MembersPage extends StatelessWidget {
+  const MembersPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('บัตรข้อมูลสมาชิก')),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'addMember',
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MemberEditPage())),
+        icon: const Icon(Icons.person_add),
+        label: const Text('เพิ่มสมาชิก'),
+      ),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 90), children: [
+        const Disclaimer('ทำบัตรให้เด็ก ผู้สูงอายุ และผู้ป่วย — ตอนเกิดเหตุเปิดบัตรให้เจ้าหน้าที่ดู หรือแคปหน้าจอ/พิมพ์ติดตัวไว้ เก็บในเครื่องนี้เท่านั้น'),
+        if (s.members.isEmpty)
+          const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('ยังไม่มีสมาชิก กด "เพิ่มสมาชิก"'))),
+        for (final m in s.members)
+          InfoCard(
+            icon: Icons.badge,
+            color: amber,
+            title: m.name.isEmpty ? '(ไม่มีชื่อ)' : '${m.name}${m.nickname.isNotEmpty ? ' (${m.nickname})' : ''}',
+            subtitle: [if (m.age.isNotEmpty) 'อายุ ${m.age}', if (m.bloodType.isNotEmpty) 'กรุ๊ป ${m.bloodType}', if (m.allergies.isNotEmpty) 'แพ้ ${m.allergies}']
+                .join(' • '),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MemberCardPage(member: m))),
+          ),
+      ]),
+    );
+  }
+}
+
+/// Big, high-contrast card to show responders (or screenshot / print).
+class MemberCardPage extends StatelessWidget {
+  const MemberCardPage({super.key, required this.member});
+  final FamilyMember member;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = member;
+    Widget row(String k, String v) => v.isEmpty
+        ? const SizedBox.shrink()
+        : Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(width: 120, child: Text(k, style: const TextStyle(color: Colors.black54, fontSize: 16))),
+              Expanded(child: Text(v, style: const TextStyle(color: Colors.black, fontSize: 19, fontWeight: FontWeight.w700))),
+            ]),
+          );
+    return Scaffold(
+      appBar: AppBar(title: const Text('บัตรข้อมูลฉุกเฉิน'), actions: [
+        IconButton(
+          tooltip: 'แก้ไข',
+          onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MemberEditPage(member: m))),
+          icon: const Icon(Icons.edit),
+        ),
+        IconButton(tooltip: 'แชร์', onPressed: () => Share.share(m.toShareText()), icon: const Icon(Icons.share)),
+      ]),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: red, width: 4)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Row(children: [
+              Icon(Icons.medical_information, color: red, size: 30),
+              SizedBox(width: 8),
+              Text('ข้อมูลฉุกเฉิน', style: TextStyle(color: red, fontSize: 22, fontWeight: FontWeight.w900)),
+            ]),
+            const SizedBox(height: 14),
+            Text(m.name.isEmpty ? '-' : m.name, style: const TextStyle(color: Colors.black, fontSize: 28, fontWeight: FontWeight.w900)),
+            if (m.nickname.isNotEmpty) Text('ชื่อเล่น ${m.nickname}', style: const TextStyle(color: Colors.black87, fontSize: 18)),
+            const SizedBox(height: 14),
+            row('อายุ', m.age),
+            row('กรุ๊ปเลือด', m.bloodType),
+            row('แพ้', m.allergies),
+            row('โรคประจำตัว', m.conditions),
+            row('ยาที่ใช้', m.medications),
+            row('ติดต่อผู้ปกครอง', m.guardianPhone),
+            row('หมายเหตุ', m.note),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        if (m.guardianPhone.isNotEmpty)
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: green, foregroundColor: navy, minimumSize: const Size.fromHeight(52)),
+            onPressed: () => callNumber(context, m.guardianPhone),
+            icon: const Icon(Icons.call),
+            label: Text('โทรผู้ปกครอง ${m.guardianPhone}'),
+          ),
+        const Disclaimer('แนะนำ: แคปหน้าจอบัตรนี้เก็บไว้ในอัลบั้ม หรือพิมพ์ใส่กระเป๋าเด็ก/ผู้สูงอายุ'),
+      ]),
+    );
+  }
+}
+
+class MemberEditPage extends StatefulWidget {
+  const MemberEditPage({super.key, this.member});
+  final FamilyMember? member;
+  @override
+  State<MemberEditPage> createState() => _MemberEditPageState();
+}
+
+class _MemberEditPageState extends State<MemberEditPage> {
+  static const _fields = {
+    'name': 'ชื่อ-นามสกุล',
+    'nickname': 'ชื่อเล่น',
+    'age': 'อายุ',
+    'bloodType': 'กรุ๊ปเลือด',
+    'allergies': 'แพ้ยา/อาหาร',
+    'conditions': 'โรคประจำตัว',
+    'medications': 'ยาที่ใช้ประจำ',
+    'guardianPhone': 'เบอร์ผู้ปกครอง/ผู้ดูแล',
+    'note': 'หมายเหตุ (เช่น สื่อสารไม่ได้ ใช้รถเข็น)',
+  };
+  late final Map<String, TextEditingController> _c;
+
+  @override
+  void initState() {
+    super.initState();
+    final j = widget.member?.toJson() ?? const <String, dynamic>{};
+    _c = {for (final k in _fields.keys) k: TextEditingController(text: (j[k] as String?) ?? '')};
+  }
+
+  @override
+  void dispose() {
+    for (final c in _c.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text(widget.member == null ? 'เพิ่มสมาชิก' : 'แก้ไขสมาชิก'),
+          actions: [
+            if (widget.member != null)
+              IconButton(
+                tooltip: 'ลบ',
+                onPressed: () async {
+                  await AppScope.read(context).removeMember(widget.member!);
+                  if (context.mounted) Navigator.pop(context);
+                },
+                icon: const Icon(Icons.delete_outline),
+              ),
+          ],
+        ),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          for (final e in _fields.entries) ...[
+            TextField(
+              controller: _c[e.key],
+              keyboardType: e.key == 'guardianPhone' ? TextInputType.phone : TextInputType.text,
+              decoration: InputDecoration(labelText: e.value),
+            ),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 8),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            onPressed: () async {
+              final j = <String, dynamic>{
+                'id': widget.member?.id ?? '${DateTime.now().microsecondsSinceEpoch}',
+                for (final e in _c.entries) e.key: e.value.text.trim(),
+              };
+              await AppScope.read(context).saveMember(FamilyMember.fromJson(j));
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('บันทึก'),
+          ),
         ]),
       );
 }

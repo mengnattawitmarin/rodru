@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
+import 'pages/emergency_page.dart';
 import 'pages/home_page.dart';
 import 'pages/map_page.dart';
 import 'pages/me_page.dart';
+import 'pages/onboarding_page.dart';
 import 'pages/ready_page.dart';
 import 'pages/sky_page.dart';
 import 'pages/sos_page.dart';
@@ -30,9 +34,30 @@ class RodruApp extends StatelessWidget {
         title: 'RODRU รอดรู้',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
-        home: const MainShell(),
+        // Large-text setting (C4): multiplies the phone's own text scale.
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          final s = AppScope.of(context);
+          return MediaQuery(
+            data: mq.copyWith(textScaler: TextScaler.linear((mq.textScaler.scale(1) * s.textScale).clamp(0.8, 2.0))),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+        home: const _Root(),
       ),
     );
+  }
+}
+
+/// Chooses the first screen: onboarding (first run) → emergency mode (if on) → tabs.
+class _Root extends StatelessWidget {
+  const _Root();
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    if (!s.onboarded) return const OnboardingPage();
+    if (s.emergencyMode) return const EmergencyPage(asHome: true);
+    return const MainShell();
   }
 }
 
@@ -58,8 +83,31 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int index = 0;
+  Timer? _autoRefresh;
+
+  // C2: keep data fresh — on return to the app and every 15 minutes while open.
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _autoRefresh = Timer.periodic(const Duration(minutes: 15), (_) {
+      if (mounted) AppScope.read(context).refreshIfStale(maxAge: const Duration(minutes: 14));
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autoRefresh?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) AppScope.read(context).refreshIfStale();
+  }
   // Pages are built lazily the first time their tab is opened, then kept alive.
   final _built = <int>{0};
 

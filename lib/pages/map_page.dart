@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../app_state.dart';
 import '../logic/format.dart';
+import '../data/content.dart';
 import '../logic/quake_intensity.dart';
 import '../models/models.dart';
 import '../services/storage.dart';
@@ -29,7 +30,7 @@ class _MapPageState extends State<MapPage> {
   final _map = MapController();
 
   // layers
-  bool _radar = true, _wind = false, _quakes = true, _water = false, _places = true;
+  bool _radar = true, _wind = false, _quakes = true, _water = false, _places = true, _radiation = false;
 
   // radar animation
   List<RadarFrame> _frames = [];
@@ -576,7 +577,7 @@ class _MapPageState extends State<MapPage> {
                         border: Border.all(color: sel?.id == q.id ? Colors.white : (q.mag >= 5 ? red : amber), width: sel?.id == q.id ? 3 : 2),
                       ),
                       child: Text(q.mag.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ),
@@ -599,6 +600,27 @@ class _MapPageState extends State<MapPage> {
                         border: Border.all(color: navy, width: 2),
                       ),
                     ),
+                  ),
+                ),
+
+            // radiation stations (ปส.) + nuclear facilities
+            if (_radiation && s.radiation != null)
+              for (final r in s.radiation!.stations)
+                Marker(
+                  point: r.latLng,
+                  width: 54,
+                  height: 30,
+                  child: GestureDetector(onTap: () => _showRadStation(r, s.radiation!, loc), child: _RadBadge(r, s.radiation!.normalMax)),
+                ),
+            if (_radiation)
+              for (final n in nuclearSites)
+                Marker(
+                  point: LatLng(n.lat, n.lon),
+                  width: 40,
+                  height: 40,
+                  child: GestureDetector(
+                    onTap: () => _showNuclearSite(n, loc),
+                    child: const _MapPin(icon: Icons.warning_amber_rounded, color: Color(0xFFE6E04A)),
                   ),
                 ),
 
@@ -645,6 +667,7 @@ class _MapPageState extends State<MapPage> {
             TextSourceAttribution('Wind: Open-Meteo'),
             TextSourceAttribution('Earthquakes: USGS'),
             TextSourceAttribution('Water level: ThaiWater (HII)'),
+            TextSourceAttribution('Radiation: Office of Atoms for Peace (OAP)'),
           ]),
         ],
       ),
@@ -667,7 +690,7 @@ class _MapPageState extends State<MapPage> {
               _frames.isNotEmpty && _radar ? 'เรดาร์ฝน ${hhmm(_frames[_frame].time)} น. • ${loc.name}' : loc.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ]),
         ),
@@ -716,6 +739,16 @@ class _MapPageState extends State<MapPage> {
               }),
             ),
             _LayerButton(icon: Icons.waves, label: 'ระดับน้ำ', on: _water, onTap: () => setState(() => _water = !_water)),
+            _LayerButton(
+              icon: Icons.warning_amber_rounded,
+              label: 'รังสี',
+              on: _radiation,
+              color: const Color(0xFFE6E04A),
+              onTap: () {
+                setState(() => _radiation = !_radiation);
+                if (_radiation) _map.move(const LatLng(13.5, 101.0), 5);
+              },
+            ),
             _LayerButton(icon: Icons.health_and_safety, label: 'จุดปลอดภัย', on: _places, onTap: () => setState(() => _places = !_places)),
             _LayerButton(icon: Icons.my_location, label: 'ตำแหน่ง', on: false, onTap: () => _map.move(loc.latLng, 11)),
             _LayerButton(
@@ -742,6 +775,7 @@ class _MapPageState extends State<MapPage> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (_quakes) _quakeBar(s, loc),
           if (_water) _waterBar(s),
+          if (_radiation) _radiationBar(s, loc),
           if (_wind) _windLegend(),
           if (_radar) _radarBar(steer),
           _placesBar(loc),
@@ -784,7 +818,7 @@ class _MapPageState extends State<MapPage> {
                       }),
                     ),
                   )
-                : const Text('กำลังโหลดเรดาร์...', style: TextStyle(fontSize: 11)),
+                : const Text('กำลังโหลดเรดาร์...', style: TextStyle(fontSize: 12)),
           ),
           const SizedBox(width: 8),
           Text(
@@ -793,7 +827,7 @@ class _MapPageState extends State<MapPage> {
           ),
         ]),
         Row(children: [
-          const Text('ฝน', style: TextStyle(fontSize: 10)),
+          const Text('ฝน', style: TextStyle(fontSize: 12)),
           const SizedBox(width: 6),
           Expanded(
             child: Container(
@@ -805,7 +839,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
           const SizedBox(width: 6),
-          const Text('เบา → หนัก', style: TextStyle(fontSize: 10, color: Colors.white60)),
+          const Text('เบา → หนัก', style: TextStyle(fontSize: 12, color: Colors.white60)),
         ]),
         if (steer != null && steer.speed >= 3) ...[
           const SizedBox(height: 6),
@@ -818,7 +852,7 @@ class _MapPageState extends State<MapPage> {
             Expanded(
               child: Text(
                 'กลุ่มฝน/เมฆกำลังเคลื่อนไปทาง${compassThai((steer.fromDir + 180) % 360)} ~${steer.speed.round()} กม./ชม. (ลมระดับ 3 กม.)',
-                style: const TextStyle(fontSize: 11.5),
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ]),
@@ -834,7 +868,7 @@ class _MapPageState extends State<MapPage> {
           Expanded(
             child: Text(
               _windSamples.isEmpty ? 'กำลังโหลดลม...' : 'ลูกศร = ทิศที่ลมพัดไป (ลมผิวพื้น 10 ม.) • ตัวเลข กม./ชม. • เลื่อนแผนที่แล้วอัปเดตเอง',
-              style: const TextStyle(fontSize: 11),
+              style: const TextStyle(fontSize: 12),
             ),
           ),
         ]),
@@ -852,7 +886,7 @@ class _MapPageState extends State<MapPage> {
               ? 'ยังโหลดระดับน้ำไม่ได้ — กดรีเฟรช'
               : 'ระดับน้ำ ${s.waterStations.length} สถานี • ล้นตลิ่ง ${counts[5] ?? 0} • น้ำมาก ${counts[4] ?? 0}'
                   '${s.waterUpdated != null ? ' • ${hhmm(s.waterUpdated)} น.' : ''}',
-          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 4),
         const Wrap(spacing: 10, children: [
@@ -862,6 +896,90 @@ class _MapPageState extends State<MapPage> {
           LegendDot(color: Color(0xFFFFE066), label: 'น้ำน้อย'),
         ]),
       ]),
+    );
+  }
+
+  Widget _radiationBar(AppState s, AppLocation loc) {
+    final r = s.radiation;
+    NuclearSite? nearest;
+    var nd = double.infinity;
+    for (final n in nuclearSites) {
+      final d = haversine(loc.lat, loc.lon, n.lat, n.lon);
+      if (d < nd) {
+        nd = d;
+        nearest = n;
+      }
+    }
+    return _box(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Text(
+          r == null
+              ? 'ยังโหลดข้อมูลรังสีไม่ได้ — กดรีเฟรช'
+              : 'รังสีแกมมา ${r.withValue.length} สถานี (ปส.) • ${r.period} • ${r.allNormal ? 'ปกติทุกสถานี' : 'มีสถานีสูงกว่าปกติ'}',
+          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+        ),
+        Text(
+          'ค่าปกติของไทย ${r?.normalMin ?? 0.01}–${r?.normalMax ?? 0.3} µSv/h • รายงานรายสัปดาห์ ไม่ใช่ค่าสด'
+          '${nearest != null ? '\nใกล้สุด: ${nearest.name} ห่าง ${distanceText(nd)}' : ''}',
+          style: const TextStyle(fontSize: 12, color: Colors.white70),
+        ),
+      ]),
+    );
+  }
+
+  void _showRadStation(RadStation st, RadiationReport r, AppLocation from) {
+    final high = st.value != null && st.value! > r.normalMax;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('สถานี ${st.id}: ${st.name}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('${st.province}${st.underwater ? ' • วัดใต้น้ำทะเล' : ''} • ห่างคุณ ${distanceText(haversine(from.lat, from.lon, st.lat, st.lon))}',
+                style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
+            Text(
+              st.value == null ? '-' : '${st.value!.toStringAsFixed(st.value! < 0.1 ? 3 : 2)}${st.err != null ? ' ± ${st.err}' : ''} ${r.unit}',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: high ? red : green),
+            ),
+            Text(st.status, style: TextStyle(color: high ? red : Colors.white70, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text('ค่าเฉลี่ยรายสัปดาห์ ${r.period} • ค่าปกติของไทย ${r.normalMin}–${r.normalMax} ${r.unit}',
+                style: const TextStyle(fontSize: 12.5, color: Colors.white60)),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, children: [
+              OutlinedButton.icon(onPressed: () => openWeb(context, r.sourceUrl), icon: const Icon(Icons.picture_as_pdf), label: const Text('รายงานต้นฉบับ ปส.')),
+              OutlinedButton.icon(onPressed: () => callNumber(context, '1296'), icon: const Icon(Icons.call), label: const Text('ปส. 1296')),
+            ]),
+            const Disclaimer('ตำแหน่งสถานีโดยประมาณ • ค่าจากรายงานรายสัปดาห์ของ ปส. อาจช้าได้ถึง 7 วัน — เหตุฉุกเฉินให้ฟังประกาศ ปส./ปภ.'),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  void _showNuclearSite(NuclearSite n, AppLocation from) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(n.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('${n.type} • ${n.country}', style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 8),
+            Text('ห่างจาก ${from.name} ประมาณ ${distanceText(haversine(from.lat, from.lon, n.lat, n.lon))}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text(
+              'หากเกิดอุบัติเหตุ: ฟังประกาศ ปส./ปภ. เปิดชั้น "ลม" เพื่อดูว่าลมพัดไปทางไหน และทำตามคู่มือ "ภัยรังสี/นิวเคลียร์"',
+              style: TextStyle(fontSize: 13.5, height: 1.4),
+            ),
+            const Disclaimer('ตำแหน่งโดยประมาณ — ตรวจสอบกับฐานข้อมูล IAEA'),
+          ]),
+        ),
+      ),
     );
   }
 
@@ -876,7 +994,7 @@ class _MapPageState extends State<MapPage> {
                     padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       visualDensity: VisualDensity.compact,
-                      labelStyle: const TextStyle(fontSize: 11),
+                      labelStyle: const TextStyle(fontSize: 12),
                       label: Text(switch (p) {
                         QuakePeriod.day => '24 ชม.',
                         QuakePeriod.week => '7 วัน',
@@ -940,11 +1058,32 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.white60)),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white60)),
           Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color)),
-          if (sub.isNotEmpty) Text(sub, style: const TextStyle(fontSize: 10, color: Colors.white54)),
+          if (sub.isNotEmpty) Text(sub, style: const TextStyle(fontSize: 12, color: Colors.white54)),
         ]),
       );
+}
+
+class _RadBadge extends StatelessWidget {
+  const _RadBadge(this.r, this.normalMax);
+  final RadStation r;
+  final double normalMax;
+  @override
+  Widget build(BuildContext context) {
+    final v = r.value;
+    final c = v == null ? Colors.white38 : (v > normalMax ? red : const Color(0xFFE6E04A));
+    return Container(
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: navy.withValues(alpha: .92),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: c, width: 2),
+      ),
+      child: Text(v == null ? '—' : v.toStringAsFixed(v < 0.1 ? 3 : 2),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: c)),
+    );
+  }
 }
 
 class _WindArrow extends StatelessWidget {
@@ -965,7 +1104,7 @@ class _WindArrow extends StatelessWidget {
           angle: towardDeg * math.pi / 180,
           child: Icon(Icons.navigation, color: c, size: 24, shadows: const [Shadow(color: Colors.black, blurRadius: 4)]),
         ),
-        Text('${speed.round()}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: c, shadows: const [Shadow(color: Colors.black, blurRadius: 3)])),
+        Text('${speed.round()}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c, shadows: const [Shadow(color: Colors.black, blurRadius: 3)])),
       ]),
     );
   }
@@ -988,15 +1127,15 @@ class _LayerButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             onTap: onTap,
             child: Container(
-              width: 58,
-              padding: const EdgeInsets.symmetric(vertical: 7),
+              width: 62,
+              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 3),
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: on ? color : Colors.white12)),
               child: Column(children: [
                 loading
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
                     : Icon(icon, size: 22, color: on ? color : Colors.white70),
                 const SizedBox(height: 2),
-                Text(label, style: const TextStyle(fontSize: 9), textAlign: TextAlign.center),
+                FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: const TextStyle(fontSize: 12), textAlign: TextAlign.center, maxLines: 1)),
               ]),
             ),
           ),

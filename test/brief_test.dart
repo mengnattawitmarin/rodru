@@ -187,4 +187,39 @@ void main() {
     expect(w.speed, closeTo(20, .01));
     expect(w.fromDir, closeTo(270, .01));
   });
+
+  test('radiation report + notices parse; caches round-trip', () {
+    final r = RadiationReport.fromJson({
+      'period': '25–31 ส.ค. 2569',
+      'normal_max': 0.3,
+      'stations': [
+        {'id': 1, 'name': 'มช.', 'province': 'เชียงใหม่', 'lat': 18.8, 'lon': 98.9, 'value': 0.09, 'err': 0.01, 'status': 'ปกติ'},
+        {'id': 10, 'name': 'บุรีรัมย์', 'province': 'บุรีรัมย์', 'lat': 15, 'lon': 103, 'value': null, 'status': 'ซ่อม'},
+      ],
+    });
+    expect(r.withValue.length, 1);
+    expect(r.allNormal, isTrue);
+
+    final n = Notice.fromJson({'id': 'a', 'title': 'ทดสอบ', 'level': 5, 'areas': ['เชียงใหม่'], 'expires': '2099-01-01T00:00:00Z'})!;
+    expect(n.level, 2);
+    expect(n.activeFor('เมืองเชียงใหม่, เชียงใหม่', DateTime.now()), isTrue);
+    expect(n.activeFor('กรุงเทพมหานคร', DateTime.now()), isFalse);
+    final old = Notice.fromJson({'id': 'b', 'title': 'x', 'expires': '2000-01-01T00:00:00Z'})!;
+    expect(old.activeFor('ที่ไหนก็ได้', DateTime.now()), isFalse);
+
+    final q = Quake(id: 'q', place: 'p', url: 'u', mag: 5, depthKm: 10, lat: 1, lon: 2, time: DateTime(2026), tsunamiFlag: true);
+    expect(Quake.fromJson(q.toJson())!.tsunamiFlag, isTrue);
+    expect(AirQuality.fromJson(const AirQuality(40, 50, 90, [1, 2]).toJson())!.pm25, 40);
+  });
+
+  test('every hazard guide has before/during/after and radiation/war exist', () {
+    for (final h in hazards) {
+      expect(h.before, isNotEmpty);
+      expect(h.during, isNotEmpty);
+      expect(h.after, isNotEmpty);
+    }
+    expect(hazardById('radiation'), isNotNull);
+    expect(hazardById('war'), isNotNull);
+    expect(hotlineDirectory.any((h) => h.number == '1296'), isTrue);
+  });
 }

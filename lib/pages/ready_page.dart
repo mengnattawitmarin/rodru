@@ -13,7 +13,7 @@ class ReadyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
-    final all = [...goBag, ...homePrep];
+    final all = [...goBag, ...homePrep, ...crisisPrep];
     final done = all.where((i) => s.checklistDone.contains(i.id)).length;
     final pct = all.isEmpty ? 0.0 : done / all.length;
 
@@ -84,6 +84,7 @@ class ReadyPage extends StatelessWidget {
         // ---- go bag ----
         _ChecklistSection(title: 'กระเป๋าฉุกเฉิน (Go-Bag)', icon: Icons.backpack, items: goBag),
         _ChecklistSection(title: 'แผนครอบครัว & บ้าน', icon: Icons.family_restroom, items: homePrep),
+        _ChecklistSection(title: 'กรณีสู้รบ & ภัยรังสี', icon: Icons.crisis_alert, items: crisisPrep),
 
         InfoCard(
           icon: Icons.edit_note,

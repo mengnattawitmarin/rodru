@@ -1,7 +1,7 @@
 name: rodru
-description: RODRU รอดรู้ — Thai disaster readiness app (v0.3)
+description: RODRU รอดรู้ — Thai disaster readiness app (v0.4)
 publish_to: "none"
-version: 0.3.0+3
+version: 0.4.0+4
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

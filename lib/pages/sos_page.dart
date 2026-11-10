@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'emergency_page.dart';
 import 'hotlines_page.dart';
 
 import '../app_state.dart';
@@ -12,6 +13,33 @@ import '../models/models.dart';
 import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+
+/// Builds the help / "I'm safe" message with fresh GPS if possible, falling
+/// back to the selected area. Shared by the SOS page and emergency mode.
+Future<String> buildSosMessage(AppState s, {required bool safe}) async {
+  final r = await LocationService.current();
+  final lat = r.position?.latitude ?? s.location.lat;
+  final lon = r.position?.longitude ?? s.location.lon;
+  final acc = r.position != null ? ' (±${r.position!.accuracy.round()} ม.)' : ' (ตำแหน่งโดยประมาณจากพื้นที่ที่เลือก)';
+  final now = DateTime.now();
+  final buf = StringBuffer()
+    ..writeln(safe ? '✅ ฉันปลอดภัย' : '🆘 ขอความช่วยเหลือด่วน')
+    ..writeln('ตำแหน่ง: https://maps.google.com/?q=${lat.toStringAsFixed(6)},${lon.toStringAsFixed(6)}$acc')
+    ..writeln('เวลา: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} น. ${now.day}/${now.month}/${now.year + 543}');
+  if (!safe && !s.medical.isEmpty) {
+    buf
+      ..writeln()
+      ..writeln('ข้อมูลทางการแพทย์:')
+      ..writeln(s.medical.toShareText());
+  }
+  buf.write('— ส่งจากแอปรอดรู้');
+  return buf.toString();
+}
+
+Future<void> shareSos(BuildContext context, {required bool safe}) async {
+  final msg = await buildSosMessage(AppScope.read(context), safe: safe);
+  await Share.share(msg, subject: safe ? 'ฉันปลอดภัย' : 'SOS ขอความช่วยเหลือ');
+}
 
 class SosPage extends StatefulWidget {
   const SosPage({super.key});
@@ -22,29 +50,12 @@ class SosPage extends StatefulWidget {
 class _SosPageState extends State<SosPage> {
   bool _locating = false;
 
-  /// Builds the help message with fresh GPS if possible, falling back to the
-  /// selected area.
   Future<String> _buildMessage({required bool safe}) async {
     final s = AppScope.read(context);
     setState(() => _locating = true);
-    final r = await LocationService.current();
+    final msg = await buildSosMessage(s, safe: safe);
     if (mounted) setState(() => _locating = false);
-    final lat = r.position?.latitude ?? s.location.lat;
-    final lon = r.position?.longitude ?? s.location.lon;
-    final acc = r.position != null ? ' (±${r.position!.accuracy.round()} ม.)' : ' (ตำแหน่งโดยประมาณจากพื้นที่ที่เลือก)';
-    final now = DateTime.now();
-    final buf = StringBuffer()
-      ..writeln(safe ? '✅ ฉันปลอดภัย' : '🆘 ขอความช่วยเหลือด่วน')
-      ..writeln('ตำแหน่ง: https://maps.google.com/?q=${lat.toStringAsFixed(6)},${lon.toStringAsFixed(6)}$acc')
-      ..writeln('เวลา: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} น. ${now.day}/${now.month}/${now.year + 543}');
-    if (!safe && !s.medical.isEmpty) {
-      buf
-        ..writeln()
-        ..writeln('ข้อมูลทางการแพทย์:')
-        ..writeln(s.medical.toShareText());
-    }
-    buf.write('— ส่งจากแอปรอดรู้');
-    return buf.toString();
+    return msg;
   }
 
   Future<void> _share({required bool safe}) async {
@@ -70,6 +81,13 @@ class _SosPageState extends State<SosPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          InfoCard(
+            icon: Icons.battery_saver,
+            color: amber,
+            title: 'โหมดฉุกเฉิน (ประหยัดแบต)',
+            subtitle: 'จอมืด ปุ่มใหญ่ เหลือเฉพาะสิ่งจำเป็น ไม่โหลดข้อมูลหนัก',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyPage())),
+          ),
           // Big primary call buttons
           Row(children: [
             Expanded(child: _BigCall(hotlines[0])),
@@ -174,7 +192,11 @@ class _BigCall extends StatelessWidget {
   const _BigCall(this.h);
   final Hotline h;
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: 'โทร ${h.number} ${h.name}',
+        excludeSemantics: true,
+        child: Material(
         color: h.color.withValues(alpha: .16),
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
@@ -193,6 +215,7 @@ class _BigCall extends StatelessWidget {
             ]),
           ),
         ),
+      ),
       );
 }
 

@@ -1,0 +1,38 @@
+name: Update radiation data
+
+# Weekly refresh of data/radiation.json from the ปส. gamma-dose report.
+# The app reads the file from raw.githubusercontent.com, so no app rebuild is needed.
+on:
+  schedule:
+    - cron: "17 2 * * 2,5" # Tue & Fri 09:17 Bangkok
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - tool/update_radiation.py
+      - .github/workflows/radiation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install pdftotext
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      - name: Fetch & parse latest report
+        run: python3 tool/update_radiation.py
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- data/radiation.json; then
+            echo "No change"
+            exit 0
+          fi
+          git config user.name "rodru-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/radiation.json
+          git commit -m "Update radiation data [skip ci]"
+          git push

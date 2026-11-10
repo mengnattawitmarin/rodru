@@ -176,6 +176,16 @@ class AirQuality {
   final List<double> pm25Next24h;
   const AirQuality(this.pm25, this.pm10, this.usAqi, this.pm25Next24h);
 
+  Map<String, dynamic> toJson() => {'pm25': pm25, 'pm10': pm10, 'aqi': usAqi, 'next': pm25Next24h};
+  static AirQuality? fromJson(Map<String, dynamic> j) {
+    try {
+      return AirQuality((j['pm25'] as num).toDouble(), (j['pm10'] as num).toDouble(), (j['aqi'] as num?)?.toInt(),
+          [for (final v in (j['next'] as List? ?? const [])) (v as num).toDouble()]);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Thai PCD PM2.5 bands (µg/m³, 24h standard revised 2023).
   int get band {
     if (pm25 <= 15) return 0;
@@ -206,6 +216,28 @@ class Quake {
     required this.tsunamiFlag,
   });
   LatLng get latLng => LatLng(lat, lon);
+
+  Map<String, dynamic> toJson() => {
+        'id': id, 'place': place, 'url': url, 'mag': mag, 'depth': depthKm, 'lat': lat, 'lon': lon,
+        't': time.millisecondsSinceEpoch, 'ts': tsunamiFlag,
+      };
+  static Quake? fromJson(Map<String, dynamic> j) {
+    try {
+      return Quake(
+        id: j['id'] as String,
+        place: j['place'] as String,
+        url: j['url'] as String,
+        mag: (j['mag'] as num).toDouble(),
+        depthKm: (j['depth'] as num).toDouble(),
+        lat: (j['lat'] as num).toDouble(),
+        lon: (j['lon'] as num).toDouble(),
+        time: DateTime.fromMillisecondsSinceEpoch((j['t'] as num).toInt()),
+        tsunamiFlag: j['ts'] == true,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 enum SafePlaceKind { hospital, police, fire, assembly, shelter }
@@ -347,6 +379,37 @@ class WaterStation {
   });
   LatLng get latLng => LatLng(lat, lon);
 
+  Map<String, dynamic> toJson() => {
+        'id': id, 'n': name, 'r': river, 'p': province, 'd': district, 'a': agency, 'la': lat, 'lo': lon,
+        'l': levelMsl, 'pl': previousMsl, 'b': minBank, 'db': diffBank, 'sp': storagePercent, 'o': overflow,
+        's': situation, 't': time.millisecondsSinceEpoch,
+      };
+  static WaterStation? fromJson(Map<String, dynamic> j) {
+    double? n(String k) => (j[k] as num?)?.toDouble();
+    try {
+      return WaterStation(
+        id: j['id'] as String,
+        name: j['n'] as String,
+        river: j['r'] as String,
+        province: j['p'] as String,
+        district: j['d'] as String,
+        agency: j['a'] as String,
+        lat: n('la')!,
+        lon: n('lo')!,
+        levelMsl: n('l'),
+        previousMsl: n('pl'),
+        minBank: n('b'),
+        diffBank: n('db'),
+        storagePercent: n('sp'),
+        overflow: j['o'] == true,
+        situation: (j['s'] as num).toInt(),
+        time: DateTime.fromMillisecondsSinceEpoch((j['t'] as num).toInt()),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// +1 rising, -1 falling, 0 steady/unknown.
   int get trend {
     if (levelMsl == null || previousMsl == null) return 0;
@@ -443,4 +506,165 @@ class MmiContour {
 class WindSample {
   final double lat, lon, speed, fromDir;
   const WindSample(this.lat, this.lon, this.speed, this.fromDir);
+}
+
+/// บัตรข้อมูลสมาชิกครอบครัว (เด็ก ผู้สูงอายุ ผู้ป่วย) — แสดง/แคปหน้าจอให้เจ้าหน้าที่ได้
+class FamilyMember {
+  final String id, name, nickname, age, bloodType, allergies, conditions, medications, guardianPhone, note;
+  const FamilyMember({
+    required this.id,
+    this.name = '',
+    this.nickname = '',
+    this.age = '',
+    this.bloodType = '',
+    this.allergies = '',
+    this.conditions = '',
+    this.medications = '',
+    this.guardianPhone = '',
+    this.note = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'nickname': nickname,
+        'age': age,
+        'bloodType': bloodType,
+        'allergies': allergies,
+        'conditions': conditions,
+        'medications': medications,
+        'guardianPhone': guardianPhone,
+        'note': note,
+      };
+
+  factory FamilyMember.fromJson(Map<String, dynamic> j) => FamilyMember(
+        id: j['id'] as String? ?? '${DateTime.now().microsecondsSinceEpoch}',
+        name: j['name'] as String? ?? '',
+        nickname: j['nickname'] as String? ?? '',
+        age: j['age'] as String? ?? '',
+        bloodType: j['bloodType'] as String? ?? '',
+        allergies: j['allergies'] as String? ?? '',
+        conditions: j['conditions'] as String? ?? '',
+        medications: j['medications'] as String? ?? '',
+        guardianPhone: j['guardianPhone'] as String? ?? '',
+        note: j['note'] as String? ?? '',
+      );
+
+  String toShareText() => [
+        'บัตรข้อมูลฉุกเฉิน',
+        if (name.isNotEmpty) 'ชื่อ: $name${nickname.isNotEmpty ? ' ($nickname)' : ''}',
+        if (age.isNotEmpty) 'อายุ: $age',
+        if (bloodType.isNotEmpty) 'กรุ๊ปเลือด: $bloodType',
+        if (allergies.isNotEmpty) 'แพ้: $allergies',
+        if (conditions.isNotEmpty) 'โรคประจำตัว: $conditions',
+        if (medications.isNotEmpty) 'ยาที่ใช้: $medications',
+        if (guardianPhone.isNotEmpty) 'ติดต่อผู้ปกครอง: $guardianPhone',
+        if (note.isNotEmpty) 'หมายเหตุ: $note',
+      ].join('\n');
+}
+
+// ---------------- radiation (ปส.) ----------------
+
+class RadStation {
+  final int id;
+  final String name, province, status;
+  final double lat, lon;
+  final double? value, err;
+  final bool underwater;
+  const RadStation({
+    required this.id,
+    required this.name,
+    required this.province,
+    required this.status,
+    required this.lat,
+    required this.lon,
+    this.value,
+    this.err,
+    this.underwater = false,
+  });
+  LatLng get latLng => LatLng(lat, lon);
+
+  factory RadStation.fromJson(Map<String, dynamic> j) => RadStation(
+        id: (j['id'] as num).toInt(),
+        name: j['name'] as String? ?? '',
+        province: j['province'] as String? ?? '',
+        status: j['status'] as String? ?? '',
+        lat: (j['lat'] as num).toDouble(),
+        lon: (j['lon'] as num).toDouble(),
+        value: (j['value'] as num?)?.toDouble(),
+        err: (j['err'] as num?)?.toDouble(),
+        underwater: j['underwater'] == true,
+      );
+}
+
+class RadiationReport {
+  final String source, sourceUrl, period, unit;
+  final double normalMin, normalMax;
+  final DateTime? updated;
+  final List<RadStation> stations;
+  const RadiationReport({
+    required this.source,
+    required this.sourceUrl,
+    required this.period,
+    required this.unit,
+    required this.normalMin,
+    required this.normalMax,
+    required this.updated,
+    required this.stations,
+  });
+
+  factory RadiationReport.fromJson(Map<String, dynamic> j) => RadiationReport(
+        source: j['source'] as String? ?? 'ปส.',
+        sourceUrl: j['source_url'] as String? ?? 'https://www.oap.go.th',
+        period: j['period'] as String? ?? '',
+        unit: j['unit'] as String? ?? 'µSv/h',
+        normalMin: (j['normal_min'] as num?)?.toDouble() ?? 0.01,
+        normalMax: (j['normal_max'] as num?)?.toDouble() ?? 0.3,
+        updated: DateTime.tryParse(j['updated'] as String? ?? ''),
+        stations: [for (final s in (j['stations'] as List? ?? const [])) RadStation.fromJson(s as Map<String, dynamic>)],
+      );
+
+  List<RadStation> get withValue => stations.where((s) => s.value != null).toList();
+  bool get allNormal => withValue.every((s) => s.value! <= normalMax);
+}
+
+// ---------------- admin announcements ----------------
+
+/// A notice posted by the app owner in data/announcements.json (B2).
+class Notice {
+  final String id, title, body;
+  final int level; // 0 info, 1 watch, 2 warning
+  final String? link;
+  final DateTime? expires;
+  final List<String> areas; // province names; empty or "*" = everywhere
+  const Notice({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.level,
+    this.link,
+    this.expires,
+    this.areas = const [],
+  });
+
+  static Notice? fromJson(Map<String, dynamic> j) {
+    final id = j['id'] as String?;
+    final title = j['title'] as String?;
+    if (id == null || title == null) return null;
+    return Notice(
+      id: id,
+      title: title,
+      body: j['body'] as String? ?? '',
+      level: ((j['level'] as num?)?.toInt() ?? 0).clamp(0, 2).toInt(),
+      link: j['link'] as String?,
+      expires: DateTime.tryParse(j['expires'] as String? ?? ''),
+      areas: [for (final a in (j['areas'] as List? ?? const [])) '$a'],
+    );
+  }
+
+  bool activeFor(String placeName, DateTime now) {
+    if (expires != null && now.isAfter(expires!)) return false;
+    if (areas.isEmpty || areas.contains('*')) return true;
+    return areas.any((a) => a.isNotEmpty && placeName.contains(a));
+  }
 }

@@ -9,6 +9,7 @@ import '../models/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'alerts_page.dart';
+import 'emergency_page.dart';
 import 'guide_page.dart';
 import 'location_picker.dart';
 import 'sos_page.dart';
@@ -36,6 +37,11 @@ class HomePage extends StatelessWidget {
               ]),
             ),
             IconButton(
+              tooltip: 'โหมดฉุกเฉิน (ประหยัดแบต)',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyPage())),
+              icon: const Icon(Icons.battery_saver),
+            ),
+            IconButton(
               tooltip: 'อัปเดต',
               onPressed: s.loading ? null : s.refresh,
               icon: s.loading
@@ -46,8 +52,8 @@ class HomePage extends StatelessWidget {
               tooltip: 'การแจ้งเตือน',
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlertsPage())),
               icon: Badge(
-                isLabelVisible: s.alerts.isNotEmpty,
-                label: Text('${s.alerts.length}'),
+                isLabelVisible: s.alerts.isNotEmpty || s.activeNotices.isNotEmpty,
+                label: Text('${s.alerts.length + s.activeNotices.length}'),
                 backgroundColor: red,
                 child: const Icon(Icons.notifications_none_rounded, size: 27),
               ),
@@ -81,6 +87,9 @@ class HomePage extends StatelessWidget {
                 TextButton(onPressed: s.refresh, child: const Text('ลองใหม่')),
               ]),
             ),
+
+          // ---- notices from the app owner (data/announcements.json) ----
+          for (final n in s.visibleNotices) _NoticeCard(n),
 
           // ---- daily brief (TV-weather style) ----
           _BriefCard(state: s, loading: s.loading && f == null),
@@ -276,7 +285,7 @@ class _BriefCard extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           b.serious ? 'ข้อมูลประเมินจากพยากรณ์ — ทำตามประกาศทางการและเจ้าหน้าที่เป็นหลัก' : 'คำแนะนำจากพยากรณ์ ไม่ใช่ประกาศทางการ',
-          style: const TextStyle(color: Colors.white38, fontSize: 10.5),
+          style: const TextStyle(color: Colors.white38, fontSize: 12),
         ),
       ]),
     );
@@ -314,6 +323,51 @@ class _WaterNearCard extends StatelessWidget {
           ]),
         ),
         const Icon(Icons.chevron_right, color: Colors.white38),
+      ]),
+    );
+  }
+}
+
+class _NoticeCard extends StatelessWidget {
+  const _NoticeCard(this.n);
+  final Notice n;
+  @override
+  Widget build(BuildContext context) {
+    final c = n.level == 0 ? blue : levelColor(n.level);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.withValues(alpha: .7), width: n.level >= 2 ? 2 : 1),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(n.level >= 2 ? Icons.campaign : Icons.info_outline, color: c, size: 26),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('ประกาศ • ${n.title}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: c)),
+            if (n.body.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(n.body, style: const TextStyle(fontSize: 14, height: 1.4)),
+            ],
+            if (n.link != null)
+              TextButton.icon(
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                onPressed: () => openWeb(context, n.link!),
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('อ่านประกาศฉบับเต็ม'),
+              ),
+          ]),
+        ),
+        if (n.level < 2)
+          IconButton(
+            tooltip: 'ซ่อนประกาศนี้',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => AppScope.read(context).dismissNotice(n),
+            icon: const Icon(Icons.close, size: 20, color: Colors.white54),
+          ),
       ]),
     );
   }
@@ -378,10 +432,10 @@ class _HourlyStrip extends StatelessWidget {
                 border: Border.all(color: h.precip >= 10 ? red : h.precip >= 2.5 ? amber : Colors.white10),
               ),
               child: Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                Text(i == 0 ? 'ตอนนี้' : '${two(h.time.hour)}:00', style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                Text(i == 0 ? 'ตอนนี้' : '${two(h.time.hour)}:00', style: const TextStyle(fontSize: 12, color: Colors.white70)),
                 Icon(weatherIcon(h.code, isDay: h.time.hour >= 6 && h.time.hour < 18), color: weatherColor(h.code), size: 22),
                 Text('${h.temp.round()}°', style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text('${h.precipProb}%', style: const TextStyle(fontSize: 10, color: blue)),
+                Text('${h.precipProb}%', style: const TextStyle(fontSize: 12, color: blue)),
               ]),
             );
           },
@@ -405,7 +459,7 @@ class _DayRow extends StatelessWidget {
         SizedBox(
           width: 70,
           child: Text('${d.precipProbMax}% ${d.precipSum >= 0.5 ? '${d.precipSum.toStringAsFixed(0)}มม.' : ''}',
-              style: TextStyle(fontSize: 11, color: d.precipSum >= 35 ? red : blue)),
+              style: TextStyle(fontSize: 12, color: d.precipSum >= 35 ? red : blue)),
         ),
         const Spacer(),
         Text('${d.tMin.round()}°', style: const TextStyle(color: Colors.white54)),

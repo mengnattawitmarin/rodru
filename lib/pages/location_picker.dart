@@ -143,7 +143,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             ListTile(
               leading: const Icon(Icons.place_outlined),
               title: Text(r.name),
-              subtitle: Text('${r.lat.toStringAsFixed(3)}, ${r.lon.toStringAsFixed(3)}', style: const TextStyle(fontSize: 11)),
+              subtitle: Text('${r.lat.toStringAsFixed(3)}, ${r.lon.toStringAsFixed(3)}', style: const TextStyle(fontSize: 12)),
               onTap: () => _pick(r),
             ),
           if (_results.isEmpty) ...[

@@ -298,6 +298,21 @@ class Api {
     return out;
   }
 
+  // ---------- Data files published in this repo (radiation, announcements) ----------
+  /// Raw URL of the repo's `data/` folder. Change if the repo moves.
+  static const repoData = 'https://raw.githubusercontent.com/mengnattawitmarin/rodru/main/data';
+
+  Future<Map<String, dynamic>> fetchRadiationRaw() => _getJson(Uri.parse('$repoData/radiation.json'));
+  Future<RadiationReport> fetchRadiation() async => RadiationReport.fromJson(await fetchRadiationRaw());
+
+  Future<List<Notice>> fetchNotices() async {
+    // cache-buster so a just-posted notice shows up quickly
+    final j = await _getJson(Uri.parse('$repoData/announcements.json?t=${DateTime.now().millisecondsSinceEpoch ~/ 60000}'));
+    return [for (final e in (j['items'] as List? ?? const []).whereType<Map<String, dynamic>>()) Notice.fromJson(e)]
+        .whereType<Notice>()
+        .toList();
+  }
+
   // ---------- Routing (OSRM demo server) ----------
   Future<List<RouteOption>> fetchRoutes(LatLng from, LatLng to) async {
     final j = await _getJson(Uri.https(

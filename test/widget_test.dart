@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('app starts offline and shows home + SOS', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'onboarded': true});
     final storage = await Storage.open();
     // Every request fails → app must still render using offline content.
     final api = Api(client: MockClient((_) async => http.Response('offline', 503)));
@@ -30,5 +30,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('ความพร้อมของฉัน'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
+  });
+
+  testWidgets('first run shows onboarding, then the app', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await Storage.open();
+    final api = Api(client: MockClient((_) async => http.Response('offline', 503)));
+    final state = AppState(storage, api: api);
+    await tester.pumpWidget(RodruApp(state: state));
+    await tester.pump();
+    expect(find.text('ข้าม'), findsOneWidget);
+    await tester.tap(find.text('ข้าม'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(state.onboarded, isTrue);
+    expect(find.text('หน้าหลัก'), findsWidgets);
+  });
+
+  testWidgets('emergency mode opens as start screen', (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarded': true, 'emergency_mode': true});
+    final storage = await Storage.open();
+    final api = Api(client: MockClient((_) async => http.Response('offline', 503)));
+    final state = AppState(storage, api: api);
+    await tester.pumpWidget(RodruApp(state: state));
+    await state.init();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('โหมดฉุกเฉิน'), findsOneWidget);
+    expect(find.text('1669'), findsWidgets);
+    expect(find.text('ออกจากโหมดนี้'), findsOneWidget);
   });
 }

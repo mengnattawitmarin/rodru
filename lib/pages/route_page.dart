@@ -66,7 +66,7 @@ class _RoutePageState extends State<RoutePage> {
             const Icon(Icons.verified_user, color: green, size: 18),
             const SizedBox(width: 8),
             const Expanded(child: Text('ตรวจสอบข้อมูลล่าสุดก่อนเดินทาง', style: TextStyle(fontSize: 12))),
-            if (_checkedAt != null) Text('อัปเดต ${hhmm(_checkedAt)} น.', style: const TextStyle(fontSize: 11, color: Colors.white60)),
+            if (_checkedAt != null) Text('อัปเดต ${hhmm(_checkedAt)} น.', style: const TextStyle(fontSize: 12, color: Colors.white60)),
           ]),
         ),
         Expanded(

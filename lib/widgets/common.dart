@@ -105,7 +105,11 @@ class ActionTile extends StatelessWidget {
   final bool highlight;
   const ActionTile({super.key, required this.icon, required this.title, required this.color, required this.onTap, this.highlight = false});
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: title,
+        excludeSemantics: true,
+        child: Material(
         color: panel,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
@@ -124,6 +128,7 @@ class ActionTile extends StatelessWidget {
             ]),
           ),
         ),
+      ),
       );
 }
 
@@ -135,7 +140,7 @@ class Pill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         decoration: BoxDecoration(color: color.withValues(alpha: .18), borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+        child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
       );
 }
 
@@ -147,7 +152,7 @@ class LegendDot extends StatelessWidget {
   Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
       ]);
 }
 
@@ -160,7 +165,7 @@ class Disclaimer extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Icon(Icons.info_outline, size: 14, color: amber),
           const SizedBox(width: 6),
-          Expanded(child: Text(text, style: const TextStyle(color: amber, fontSize: 11, height: 1.35))),
+          Expanded(child: Text(text, style: const TextStyle(color: amber, fontSize: 12, height: 1.35))),
         ]),
       );
 }

@@ -22,7 +22,24 @@ class AlertsPage extends StatelessWidget {
           children: [
             Text('พื้นที่: ${s.location.name}', style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 10),
-            if (s.alerts.isEmpty)
+            for (final n in s.activeNotices)
+              Panel(
+                borderColor: (n.level == 0 ? blue : levelColor(n.level)).withValues(alpha: .7),
+                onTap: n.link == null ? null : () => openWeb(context, n.link!),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(Icons.campaign, color: n.level == 0 ? blue : levelColor(n.level)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(n.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15))),
+                    const Pill('ประกาศ', color: blue),
+                  ]),
+                  if (n.body.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(n.body, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  ],
+                ]),
+              ),
+            if (s.alerts.isEmpty && s.activeNotices.isEmpty)
               const Panel(
                 child: Row(children: [
                   Icon(Icons.check_circle, color: green, size: 30),

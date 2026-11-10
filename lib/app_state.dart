@@ -35,8 +35,31 @@ class AppState extends ChangeNotifier {
   List<EmergencyContact> contacts = [];
   MedicalInfo medical = const MedicalInfo();
   Map<String, String> familyPlan = {};
+  List<FamilyMember> members = [];
+
+  // Radiation (ปส. weekly report via repo data file) and admin notices
+  RadiationReport? radiation;
+  List<Notice> notices = const [];
+  Set<String> dismissedNotices = {};
+
+  // App mode / settings (read synchronously so the first frame is right)
+  late bool onboarded = storage.getBool(Keys.onboarded);
+  late bool emergencyMode = storage.getBool(Keys.emergencyMode);
+  late double textScale = double.tryParse(storage.getString(Keys.textScale) ?? '') ?? 1.0;
 
   int get topLevel => alerts.isEmpty ? 0 : alerts.first.level;
+
+  /// Notices for the current area that have not expired (warnings first).
+  List<Notice> get activeNotices {
+    final now = DateTime.now();
+    final l = notices.where((n) => n.activeFor(location.name, now)).toList();
+    l.sort((a, b) => b.level.compareTo(a.level));
+    return l;
+  }
+
+  /// Active notices the user has not dismissed (level-2 cannot be dismissed).
+  List<Notice> get visibleNotices =>
+      activeNotices.where((n) => n.level >= 2 || !dismissedNotices.contains(n.id)).toList();
 
   Future<void> init() async {
     final loc = storage.getJson(Keys.location);
@@ -63,11 +86,30 @@ class AppState extends ChangeNotifier {
         .toList();
     final med = storage.getJson(Keys.medical);
     if (med != null) medical = MedicalInfo.fromJson(med);
+    members = storage.getJsonList(Keys.members).whereType<Map<String, dynamic>>().map(FamilyMember.fromJson).toList();
     final plan = storage.getJson(Keys.familyPlan);
     if (plan != null) familyPlan = plan.map((k, v) => MapEntry(k, '$v'));
+    dismissedNotices = storage.getSet(Keys.dismissedNotices);
+    _loadCaches();
     _recompute();
     notifyListeners();
     unawaited(refresh());
+  }
+
+  /// Last good copies of every feed so the app is useful offline (C3).
+  void _loadCaches() {
+    final a = storage.getJson(Keys.cacheAir);
+    if (a != null) air = AirQuality.fromJson(a);
+    quakes = storage.getJsonList(Keys.cacheQuakes).whereType<Map<String, dynamic>>().map(Quake.fromJson).whereType<Quake>().toList();
+    waterStations =
+        storage.getJsonList(Keys.cacheWater).whereType<Map<String, dynamic>>().map(WaterStation.fromJson).whereType<WaterStation>().toList();
+    final r = storage.getJson(Keys.cacheRadiation);
+    if (r != null) {
+      try {
+        radiation = RadiationReport.fromJson(r);
+      } catch (_) {}
+    }
+    notices = storage.getJsonList(Keys.cacheNotices).whereType<Map<String, dynamic>>().map(Notice.fromJson).whereType<Notice>().toList();
   }
 
   Future<void> refresh() async {
@@ -93,6 +135,7 @@ class AppState extends ChangeNotifier {
       () async {
         try {
           air = await api.fetchAir(lat, lon);
+          await storage.setJson(Keys.cacheAir, air!.toJson());
         } catch (_) {
           errors.add('ฝุ่น');
         }
@@ -100,6 +143,7 @@ class AppState extends ChangeNotifier {
       () async {
         try {
           quakes = await api.fetchQuakes();
+          await storage.setJson(Keys.cacheQuakes, quakes.map((q) => q.toJson()).toList());
         } catch (_) {
           errors.add('แผ่นดินไหว');
         }
@@ -107,12 +151,39 @@ class AppState extends ChangeNotifier {
       () async {
         // ~800 stations nationwide; refresh at most every 20 minutes.
         if (waterUpdated != null && DateTime.now().difference(waterUpdated!) < const Duration(minutes: 20)) return;
+        if (emergencyMode) return; // save data/battery in emergency mode
         try {
           waterStations = await api.fetchWaterLevels();
           waterUpdated = DateTime.now();
+          await storage.setJson(Keys.cacheWater, waterStations.map((w) => w.toJson()).toList());
         } catch (_) {
           // Not fatal: the water layer shows its own error.
         }
+      }(),
+      () async {
+        try {
+          notices = await api.fetchNotices();
+          await storage.setJson(Keys.cacheNotices, [
+            for (final n in notices)
+              {
+                'id': n.id,
+                'title': n.title,
+                'body': n.body,
+                'level': n.level,
+                'link': n.link,
+                'expires': n.expires?.toIso8601String(),
+                'areas': n.areas,
+              }
+          ]);
+        } catch (_) {}
+      }(),
+      () async {
+        if (emergencyMode) return;
+        try {
+          final raw = await api.fetchRadiationRaw();
+          radiation = RadiationReport.fromJson(raw);
+          await storage.setJson(Keys.cacheRadiation, raw);
+        } catch (_) {}
       }(),
     ]);
 
@@ -208,6 +279,57 @@ class AppState extends ChangeNotifier {
     await storage.setJson(Keys.familyPlan, plan);
   }
 
+  Future<void> saveMember(FamilyMember m) async {
+    final i = members.indexWhere((e) => e.id == m.id);
+    members = [...members];
+    if (i >= 0) {
+      members[i] = m;
+    } else {
+      members.add(m);
+    }
+    notifyListeners();
+    await storage.setJson(Keys.members, members.map((e) => e.toJson()).toList());
+  }
+
+  Future<void> removeMember(FamilyMember m) async {
+    members = members.where((e) => e.id != m.id).toList();
+    notifyListeners();
+    await storage.setJson(Keys.members, members.map((e) => e.toJson()).toList());
+  }
+
+  // ---- notices & settings ----
+  Future<void> dismissNotice(Notice n) async {
+    dismissedNotices = {...dismissedNotices, n.id};
+    notifyListeners();
+    await storage.setSet(Keys.dismissedNotices, dismissedNotices);
+  }
+
+  Future<void> setOnboarded() async {
+    onboarded = true;
+    notifyListeners();
+    await storage.setBool(Keys.onboarded, true);
+  }
+
+  Future<void> setEmergencyMode(bool on) async {
+    emergencyMode = on;
+    notifyListeners();
+    await storage.setBool(Keys.emergencyMode, on);
+    if (!on) unawaited(refresh());
+  }
+
+  Future<void> setTextScale(double v) async {
+    textScale = v;
+    notifyListeners();
+    await storage.setString(Keys.textScale, v.toString());
+  }
+
+  /// Refresh if data is older than [maxAge] (used on app resume / timer).
+  Future<void> refreshIfStale({Duration maxAge = const Duration(minutes: 10)}) async {
+    if (loading) return;
+    final last = lastUpdated;
+    if (last == null || DateTime.now().difference(last) > maxAge) await refresh();
+  }
+
   Future<void> resetAll() async {
     await storage.clearAll();
     location = AppLocation.bangkok;
@@ -216,6 +338,11 @@ class AppState extends ChangeNotifier {
     medical = const MedicalInfo();
     familyPlan = {};
     pinnedHotlines = {};
+    members = [];
+    dismissedNotices = {};
+    onboarded = false;
+    emergencyMode = false;
+    textScale = 1.0;
     forecast = null;
     notifyListeners();
     await refresh();

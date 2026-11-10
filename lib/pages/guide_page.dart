@@ -23,22 +23,38 @@ class GuidePage extends StatelessWidget {
           bottom: const TabBar(tabs: [Tab(text: 'ก่อนเกิดเหตุ'), Tab(text: 'ขณะเกิดเหตุ'), Tab(text: 'หลังเกิดเหตุ')]),
         ),
         body: TabBarView(children: [
-          _StepList(steps: h.before, color: h.color),
-          _StepList(steps: h.during, color: h.color),
-          _StepList(steps: h.after, color: h.color),
+          _StepList(steps: h.before, color: h.color, crisis: _isCrisis(h)),
+          _StepList(steps: h.during, color: h.color, crisis: _isCrisis(h)),
+          _StepList(steps: h.after, color: h.color, crisis: _isCrisis(h)),
         ]),
         bottomNavigationBar: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: Row(children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    if (await confirmCall(context, '1784', 'สายด่วน ปภ.') && context.mounted) callNumber(context, '1784');
-                  },
-                  icon: const Icon(Icons.shield),
-                  label: const Text('ปภ. 1784'),
-                ),
+                child: h.id == 'radiation'
+                    ? OutlinedButton.icon(
+                        onPressed: () async {
+                          if (await confirmCall(context, '1296', 'ปส. แจ้งเหตุฉุกเฉินทางรังสี') && context.mounted) callNumber(context, '1296');
+                        },
+                        icon: const Icon(Icons.warning_amber_rounded),
+                        label: const Text('ปส. 1296'),
+                      )
+                    : h.id == 'war'
+                        ? OutlinedButton.icon(
+                            onPressed: () async {
+                              if (await confirmCall(context, '191', 'เหตุด่วนเหตุร้าย') && context.mounted) callNumber(context, '191');
+                            },
+                            icon: const Icon(Icons.local_police),
+                            label: const Text('ตำรวจ 191'),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () async {
+                              if (await confirmCall(context, '1784', 'สายด่วน ปภ.') && context.mounted) callNumber(context, '1784');
+                            },
+                            icon: const Icon(Icons.shield),
+                            label: const Text('ปภ. 1784'),
+                          ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -59,10 +75,13 @@ class GuidePage extends StatelessWidget {
   }
 }
 
+bool _isCrisis(Hazard h) => h.id == 'radiation' || h.id == 'war';
+
 class _StepList extends StatelessWidget {
-  const _StepList({required this.steps, required this.color});
+  const _StepList({required this.steps, required this.color, this.crisis = false});
   final List<String> steps;
   final Color color;
+  final bool crisis;
   @override
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.all(16),
@@ -81,6 +100,11 @@ class _StepList extends StatelessWidget {
                 Expanded(child: Text(steps[i], style: const TextStyle(fontSize: 15, height: 1.45))),
               ]),
             ),
+          if (crisis) ...[
+            const SectionTitle('ติดตามประกาศทางการเท่านั้น'),
+            for (final o in officialSources.where((o) => crisisSourceNames.contains(o.name)))
+              InfoCard(icon: Icons.verified_outlined, color: green, title: o.name, subtitle: o.desc, onTap: () => openWeb(context, o.url)),
+          ],
           const Disclaimer('คำแนะนำทั่วไป อ่านได้แม้ไม่มีอินเทอร์เน็ต — เมื่อเกิดเหตุจริงให้ทำตามคำสั่งเจ้าหน้าที่ในพื้นที่เป็นหลัก'),
         ],
       );
