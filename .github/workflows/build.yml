@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - "data/**"
       - "**.md"
+      - "tool/update_radiation.py"
+      - ".github/workflows/radiation.yml"
   pull_request:
   workflow_dispatch:
 

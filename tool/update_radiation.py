@@ -9,7 +9,7 @@ Strategy (best effort — keeps the old file when anything looks wrong):
   3. Parse rows "<station no> ... <value> ± <err>" (or "-" for no reading).
   4. Write only if ≥ 10 stations parsed and values are plausible.
 
-Exit code 0 always (so the schedule does not spam failures); problems are
+Always exits 0 (so the schedule does not spam failures); problems are
 printed as GitHub ::warning:: annotations.
 """
 import datetime as dt
