@@ -1,11 +1,11 @@
 {
  "source": "สำนักงานปรมาณูเพื่อสันติ (ปส.) — รายงานระดับปริมาณรังสีแกมมาเฉลี่ยรายสัปดาห์",
- "source_url": "https://www.oap.go.th/wp-content/uploads/2026/09/รายงานสรุประดับปริมาณรังสีแกมมาเฉลี่ย250869-310869.pdf",
- "period": "25–31 ส.ค. 2569",
+ "source_url": "https://www.oap.go.th/wp-content/uploads/2026/11/รายงานสรุประดับปริมาณรังสีแกมมาเฉลี่ย-3-พฤศจิกายน-9-พฤศจิกายน-2569.pdf",
+ "period": "3 พฤศจิกายน – 9 พฤศจิกายน 2569",
  "unit": "µSv/h",
  "normal_min": 0.01,
  "normal_max": 0.3,
- "updated": "2026-11-10T14:30:00+07:00",
+ "updated": "2026-11-10T14:30+07:00",
  "positions_note": "ตำแหน่งสถานีโดยประมาณ (ระดับเมือง/หน่วยงาน)",
  "stations": [
   {
@@ -14,7 +14,7 @@
    "province": "เชียงใหม่",
    "lat": 18.803,
    "lon": 98.952,
-   "value": 0.09,
+   "value": 0.1,
    "err": 0.01,
    "status": "ปกติ",
    "underwater": false
@@ -48,7 +48,7 @@
    "lat": 19.91,
    "lon": 99.83,
    "value": 0.07,
-   "err": 0.03,
+   "err": 0.01,
    "status": "ปกติ",
    "underwater": false
   },
@@ -58,9 +58,9 @@
    "province": "แม่ฮ่องสอน",
    "lat": 19.3,
    "lon": 97.968,
-   "value": 0.1,
-   "err": 0.01,
-   "status": "ปกติ",
+   "value": null,
+   "err": null,
+   "status": "อยู่ระหว่างการซ่อมบำรุง",
    "underwater": false
   },
   {
@@ -80,7 +80,7 @@
    "province": "หนองคาย",
    "lat": 17.885,
    "lon": 102.58,
-   "value": 0.09,
+   "value": 0.08,
    "err": 0.01,
    "status": "ปกติ",
    "underwater": false
@@ -124,9 +124,9 @@
    "province": "กาญจนบุรี",
    "lat": 15.15,
    "lon": 98.45,
-   "value": 0.08,
-   "err": 0.01,
-   "status": "ปกติ",
+   "value": null,
+   "err": null,
+   "status": "อยู่ระหว่างการซ่อมบำรุง",
    "underwater": false
   },
   {
@@ -168,7 +168,7 @@
    "province": "ตราด",
    "lat": 12.24,
    "lon": 102.51,
-   "value": 0.03,
+   "value": 0.01,
    "err": 0.01,
    "status": "ปกติ",
    "underwater": false
@@ -179,9 +179,9 @@
    "province": "สงขลา",
    "lat": 7.17,
    "lon": 100.61,
-   "value": null,
-   "err": null,
-   "status": "อยู่ระหว่างการติดตั้งสถานี",
+   "value": 0.06,
+   "err": 0.01,
+   "status": "ปกติ",
    "underwater": false
   },
   {
@@ -234,7 +234,7 @@
    "province": "กรุงเทพมหานคร",
    "lat": 13.846,
    "lon": 100.566,
-   "value": 0.07,
+   "value": 0.004,
    "err": 0.01,
    "status": "ปกติ",
    "underwater": false
@@ -245,7 +245,7 @@
    "province": "ภูเก็ต",
    "lat": 7.79,
    "lon": 98.425,
-   "value": 0.018,
+   "value": 0.028,
    "err": 0.01,
    "status": "ปกติ",
    "underwater": true
