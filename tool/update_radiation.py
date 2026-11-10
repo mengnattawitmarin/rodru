@@ -125,16 +125,21 @@ def main():
     if url == cur.get("source_url"):
         print("already up to date")
         return
-    with tempfile.TemporaryDirectory() as d:
-        pdf = os.path.join(d, "r.pdf")
-        open(pdf, "wb").write(get(url))
-        txt = subprocess.run(["pdftotext", "-layout", pdf, "-"], capture_output=True, text=True).stdout
+    tmp = tempfile.mkdtemp()
+    pdf_path = os.path.join(tmp, "r.pdf")
+    open(pdf_path, "wb").write(get(url))
+    txt = subprocess.run(["pdftotext", "-layout", pdf_path, "-"], capture_output=True, text=True).stdout
+    if len(txt.strip()) < 50:
+        warn("PDF has almost no extractable text (scanned image?) — OCR would be needed")
     rows = parse(txt)
     print(f"parsed {len(rows)} stations:", rows)
     good = [v for v in rows.values() if v[0] is not None]
     if len(rows) < 10 or len(good) < 8:
         warn(f"parsed only {len(rows)} stations from {url} — layout may have changed; keeping existing data")
-        print(txt[:3000])
+        sample = txt[:2500].replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+        print(f"::warning title=pdftotext sample::{sample}")
+        raw = subprocess.run(["pdftotext", "-raw", pdf_path, "-"], capture_output=True, text=True).stdout[:2500]
+        print("::warning title=pdftotext raw sample::" + raw.replace("%", "%25").replace("\n", "%0A"))
         return
     if any(v[0] > 50 for v in good):
         warn("implausible value (>50 µSv/h) — keeping existing data for manual review")
