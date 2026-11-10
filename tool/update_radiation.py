@@ -38,6 +38,8 @@ def warn(msg):
 
 
 def get(url, timeout=40):
+    # OAP file names are Thai — percent-encode non-ASCII (keeps existing %xx escapes)
+    url = urllib.parse.quote(url, safe=":/?&=%#+,;@!$'()*~")
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
