@@ -11,12 +11,14 @@
 - เจ้าของ: mengnattawitmarin · ภาษา UI: ไทย · ธีม: dark navy (ดู `lib/theme.dart`)
 - ภาพดีไซน์ต้นแบบ: 4 หน้าจอ (หน้าหลัก, แผนที่สถานการณ์, เส้นทางไปจุดปลอดภัย, ท้องฟ้า & ธรรมชาติ)
 
-## สถานะล่าสุด (v0.3 — 2026-11-03)
+## สถานะล่าสุด (v0.4 — 2026-11-10)
 - ✅ v0.2 ทดสอบบนมือถือ Android จริงแล้ว (เจ้าของ) — รายการปรับปรุงจาก feedback อยู่ใน Backlog ของโปรเจกต์ (`RODRU/BACKLOG.md` บน claude.ai)
 - v0.3 ทำ Backlog #1–#8 ครบ: การ์ดสรุปอากาศสไตล์ทีวี, SOS ลอย, สมุดเบอร์ฉุกเฉิน 36 เบอร์, ระดับน้ำ ThaiWater,
   เรดาร์เคลื่อนไหว + ทิศที่ฝนกำลังไป + ชั้นลม, โหมดแผ่นดินไหว/สึนามิ (วงแรงสั่น, ShakeMap, ประวัติ 50 ปี), กล้อง AR ท้องฟ้า, Overpass สำรอง + แคช
 - ⚠️ ฟีเจอร์ v0.3 ยังไม่ได้ทดสอบบนเครื่องจริง โดยเฉพาะกล้อง AR (ความแม่นยำเซนเซอร์/FOV) และ ThaiWater API
-- 5 แท็บ: หน้าหลัก · แผนที่ · เตรียมพร้อม · ท้องฟ้า · ฉัน + หน้า SOS, สมุดเบอร์, แจ้งเตือน, เส้นทาง, คู่มือ, เลือกพื้นที่, AR
+- v0.4 (Checklist รอบ 10 พ.ย. ⭐ 17 ข้อ): ภัยรังสี/สงคราม, ชั้นรังสี ปส. + บอทอัปเดต, ประกาศจากผู้ดูแล, โหมดฉุกเฉิน, บัตรสมาชิก, รีเฟรชอัตโนมัติ + แคชออฟไลน์, ตัวอักษร ≥12 + ตั้งขนาด, หน้าแนะนำ, PRIVACY.md
+- 5 แท็บ: หน้าหลัก · แผนที่ · เตรียมพร้อม · ท้องฟ้า · ฉัน + หน้า SOS, โหมดฉุกเฉิน, สมุดเบอร์, แจ้งเตือน, เส้นทาง, คู่มือ, เลือกพื้นที่, AR, หน้าแนะนำ, บัตรสมาชิก
+- ลำดับหน้าแรก: ยังไม่ onboard → OnboardingPage; emergencyMode → EmergencyPage(asHome); ไม่งั้น MainShell (`_Root` ใน main.dart)
 
 ## โครงสร้างโค้ด
 ```
@@ -67,6 +69,11 @@ http, flutter_map ^8, latlong2, geolocator ^13, url_launcher, share_plus ^10 (�
 bash tool/setup_platforms.sh && flutter pub get && flutter test && flutter run
 ```
 
+## ไฟล์ข้อมูลใน repo (แอปอ่านผ่าน raw.githubusercontent.com — แก้แล้วไม่ต้อง build)
+- `data/announcements.json` — ประกาศจากผู้ดูแล (`items[]`: id, level 0–2, title, body, link, areas[], expires) ดู README
+- `data/radiation.json` — บอท `.github/workflows/radiation.yml` (อ./ศ. 09:17) รัน `tool/update_radiation.py`: หา PDF ล่าสุดผ่าน WP media API ของ oap.go.th → `pdftotext -layout` → แยกแถว "สถานีที่ N … ค่า±err สถานะ" → commit `[skip ci]`; แปลงไม่ได้จะคงค่าเดิม + ส่ง ::warning พร้อมตัวอย่างข้อความ PDF (อ่านผ่าน API check-runs annotations)
+- build.yml มี paths-ignore: data/**, **.md, ไฟล์บอทรังสี
+
 ## แหล่งข้อมูลที่ใช้ (ไม่ต้องใช้ key)
 Open-Meteo (forecast, air, marine, multi-point wind), USGS (FDSN query, event detail + ShakeMap `download/cont_mmi.json`),
 RainViewer (`weather-maps.json` past/nowcast, zoom ≤ 7), ThaiWater `https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load`
@@ -75,6 +82,7 @@ Overpass (3 เซิร์ฟเวอร์สำรอง), OSRM demo, Nomina
 ตัวเลือกอนาคต: TMD earthquake RSS `https://earthquake.tmd.go.th/feed/rss_tmd.xml`, ThaiWater `rain_24h`, `flood_road` (เซนเซอร์ถนน กทม.)
 
 ## งานถัดไป (เรียงตามความสำคัญ)
+> รายการเต็ม + สถานะอยู่ใน `RODRU/BACKLOG.md` (claude.ai project) — Checklist v0.4 ที่ยังไม่ทำ: A4 A6 B5 B8 C7–C15
 1. รับ feedback v0.3 บนเครื่องจริง (กล้อง AR, ระดับน้ำ, เรดาร์เคลื่อนไหว, การ์ดสรุป) แล้วแก้
 2. เชื่อมประกาศเตือนภัยทางการ (TMD / ปภ. / NDWC) — แสดงแยกจาก RiskAlert ที่แอปคำนวณ
 3. Push notification ตามพื้นที่ + สรุปอากาศเช้า 06:30 (FCM/workmanager + flutter_local_notifications — ต้องใส่ core library desugaring ผ่าน patch script)
@@ -87,6 +95,7 @@ Overpass (3 เซิร์ฟเวอร์สำรอง), OSRM demo, Nomina
 ## บันทึกการส่งต่อ (เพิ่มรายการใหม่ไว้บนสุด)
 | วันที่ | ผู้ทำ (AI/คน) | ทำอะไร | ค้าง/ข้อควรรู้ |
 |---|---|---|---|
+| 2026-11-10 | Claude (claude.ai) | v0.4: ทำ Checklist ⭐ (A1 A2 A3 A5 A7 B1–B4 B6 B7 C2–C6) — ดู CHANGELOG | C1 กล้อง AR iPhone ยังรอทดสอบ; พิกัดสถานีรังสี/เครื่องปฏิกรณ์เป็นค่าประมาณ; ข้อมูลรังสีรายสัปดาห์ |
 | 2026-11-09 | Claude (claude.ai) | AR iPhone รวน: `webkitCompassHeading` แกว่งตอนถือตั้ง → เรียน offset (alpha→ทิศเหนือ) ตอนวางราบ แล้วใช้ alpha จากไจโร + ปุ่มปรับเทียบเล็งดวงอาทิตย์/จันทร์ + แก้ทิศ/FOV ด้วยมือ (จำค่าใน Storage `ar_az_offset`, `ar_vfov`) | รอผลทดสอบ iPhone; alpha ของ iOS อาจ drift ช้า ๆ — วางราบอีกครั้งเพื่อแก้ |
 | 2026-11-09 | Claude (claude.ai) | AR บนเว็บ/iPhone: ใช้ `deviceorientation` + `webkitCompassHeading` ผ่าน `lib/services/web_orientation*.dart` (conditional export) และปุ่มขอสิทธิ์ (iOS ต้องกดเอง) | ยังไม่ยืนยันความแม่นยำบน iPhone จริง |
 | 2026-11-05 | Claude (claude.ai) | เพิ่มเวอร์ชันเว็บ (PWA) สำหรับ iPhone ผ่าน GitHub Pages | บนเว็บ: เซนเซอร์เข็มทิศ/AR ใน Safari อาจไม่ทำงาน (iOS ต้องขอสิทธิ์ DeviceMotion), ThaiWater อาจติด CORS, ไม่มีแจ้งเตือน; แอป iOS จริงต้องมี Apple Developer + TestFlight |
