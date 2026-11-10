@@ -74,27 +74,52 @@ def find_pdfs():
 VALUE = re.compile(r"(\d+\.\d+)\s*(?:±|\+/-|\+-|±)\s*(\d+\.\d+)")
 
 
+STATION = re.compile(r"(?:สถานีที่|สถานี\s*ที่)\s*(\d{1,2})\b")
+
+
 def parse(text):
-    """Return {station_id: (value|None, err|None, status)}."""
+    """Return {station_id: (value|None, err|None, status)}.
+
+    Rows look like (pdftotext -layout):
+      ภาคเหนือ   สถานีที่ 1 มช. (เชียงใหม่)      0.10±0.01     ปกติ
+                 สถานีที่ 5 แม่ฮ่องสอน               -        อยู่ระหว่างการ
+                                                               ซ่อมบำรุง
+    Long names may wrap, so the value can be on one of the next two lines.
+    """
+    lines = text.splitlines()
     rows = {}
-    for raw in text.splitlines():
-        line = raw.strip()
-        m = re.match(r"^(\d{1,2})[\s.)]+(.*)$", line)
+    for i, line in enumerate(lines):
+        m = STATION.search(line)
         if not m:
-            continue
+            # fallback: rows starting with a bare number
+            m2 = re.match(r"^\s*(\d{1,2})[\s.)]+(.*)$", line)
+            if not m2 or not VALUE.search(line):
+                continue
+            m = m2
         sid = int(m.group(1))
         if not 1 <= sid <= 22 or sid in rows:
             continue
-        rest = m.group(2)
-        v = VALUE.search(rest)
+        rest = line[m.end():]
+        # look on this line, then up to 2 continuation lines that are not another station
+        window = [rest] + [l for l in lines[i + 1:i + 3] if not STATION.search(l)]
+        status_text = " ".join(window[:3])
+        v = None
+        for w in window:
+            v = VALUE.search(w)
+            if v:
+                break
         if v:
             val, err = float(v.group(1)), float(v.group(2))
-            status = "ปกติ" if 0 < val <= 0.3 else ("สูงกว่าปกติ" if val > 0.3 else "ไม่ทราบ")
+            status = "ปกติ" if val <= 0.3 else "สูงกว่าปกติ"
+            if "ปกติ" not in status_text and val <= 0.3:
+                status = "ปกติ"
             rows[sid] = (val, err, status)
-        elif "ซ่อม" in rest:
+        elif "ซ่อม" in status_text or "อยู่ระหว่างการ" in status_text and "ติดตั้ง" not in status_text:
             rows[sid] = (None, None, "อยู่ระหว่างการซ่อมบำรุง")
-        elif "ติดตั้ง" in rest:
+        elif "ติดตั้ง" in status_text:
             rows[sid] = (None, None, "อยู่ระหว่างการติดตั้งสถานี")
+        elif re.search(r"\s-\s", f" {rest} "):
+            rows[sid] = (None, None, "ไม่มีข้อมูล")
     return rows
 
 
